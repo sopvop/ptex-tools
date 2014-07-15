@@ -29,7 +29,7 @@ int do_ptex_merge(int argc, const char** argv) {
          return -1;
     }
     for (int i = 0; i < nfiles; ++i){
-	std::cout<<argv[i+1]<<":"<<offsets[i]<<std::endl;
+	std::cout<<offsets[i]<<":"<<argv[i+1]<<std::endl;
     }
     free(offsets);
     return 0;
@@ -51,7 +51,7 @@ int do_ptex_reverse(int argc, const char** argv) {
 
 int main(int argc, const char** argv){
     if (argc < 2) {
-        std::cerr<<"Please specify tool"<<std::endl;
+        std::cerr<<"Please specify tool: merge, reverse"<<std::endl;
         return -1;
     }
     std::string tool = argv[1];
