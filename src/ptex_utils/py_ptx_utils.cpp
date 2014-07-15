@@ -56,9 +56,23 @@ Py_merge_ptex(PyObject *, PyObject* args){
     return result;
 }
 
+static PyObject*
+Py_reverse_ptex(PyObject *, PyObject* args){
+    const char *input = 0;
+    const char *output = 0;
+    Ptex::String err_msg;
+    if(!PyArg_ParseTuple(args, "ss:reverse_ptex", &input, &output))
+	return 0;
+    if (ptex_reverse(input, output, err_msg)){
+	PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
+        return 0;
+    }
+    Py_RETURN_NONE;
+}
 
 static PyMethodDef ptexutils_methods [] = {
     { "merge_ptex", Py_merge_ptex, METH_VARARGS, "merge ptex files"},
+    { "reverse_ptex", Py_reverse_ptex, METH_VARARGS, "reverse faces in ptex file"},
     { NULL, NULL, 0, NULL }
 };
 
