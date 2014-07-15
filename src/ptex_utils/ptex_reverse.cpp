@@ -134,7 +134,7 @@ int ptex_reverse(const char* file,
         num_channels,
         input->alphaChannel(),
         num_faces,
-        err_msg, false);
+        err_msg, true);
 
     if (output == 0) {
         input->release();
