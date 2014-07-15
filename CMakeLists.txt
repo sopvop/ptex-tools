@@ -21,7 +21,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
   set(LINK_FLAGS "-pthread -Wl,--no-undefined -Wl,-O1")
 endif()
 
-add_subdirectory(src/ptex_merge)
+add_subdirectory(src/ptex_utils)
 
 install(FILES ptexutils/__init__.py
   DESTINATION ${INSTALL_PYTHON_PATH}/ptexutils/)

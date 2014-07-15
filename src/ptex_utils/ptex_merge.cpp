@@ -1,7 +1,8 @@
 #include <vector>
 #include <string>
 #include <stdlib.h>
-#include "ptex_merge.hpp"
+
+#include "ptex_util.hpp"
 
 using std::vector;
 struct InputTex {

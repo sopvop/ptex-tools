@@ -1,5 +1,5 @@
 #include <Python.h>
-#include "ptex_merge.hpp"
+#include "ptex_util.hpp"
 
 static PyObject*
 Py_merge_ptex(PyObject *, PyObject* args){

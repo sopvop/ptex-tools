@@ -1,5 +1,4 @@
-#ifndef ptex_merge_hpp
-#define ptex_merge_hpp
+#pragma once
 
 #include <Ptexture.h>
 
@@ -25,9 +24,10 @@ int ptex_merge(int nfiles, const char** files,
 	       const char* output_file, int *offsets,
 	       Ptex::String &err_msg);
 
-
+int ptex_reverse(const char* file,
+                 const char* output_file,
+                 Ptex::String &err_msg);
 #ifdef __cplusplus
 }
 #endif
 
-#endif
