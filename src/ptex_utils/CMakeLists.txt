@@ -14,8 +14,8 @@ target_link_libraries(cptexutils ${PTEX_LIBRARY}
 install(TARGETS cptexutils
   DESTINATION ${INSTALL_PYTHON_PATH}/ptexutils/)
 
-add_executable(sm_ptex_tool ${SRC} main.cpp)
-target_link_libraries(sm_ptex_tool ${PTEX_LIBRARY}
+add_executable(ptex-tool ${SRC} main.cpp)
+target_link_libraries(ptex-tool ${PTEX_LIBRARY}
 				   ${ZLIB_LIBRARY})
 
-install(TARGETS sm_ptex_tool DESTINATION ${INSTALL_BIN_PATH})
+install(TARGETS ptex-tool DESTINATION ${INSTALL_BIN_PATH})
