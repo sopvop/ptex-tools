@@ -19,7 +19,7 @@ swap_data(int data_size, int u_size, int v_size, char *data, char* outdata) {
     for (int i =0; i < u_size; ++i) {
         for (int j = 0; j < v_size; ++j) {
             char *inp = data+(j*u_size+i)*data_size;
-            char *outp = outdata+(i*u_size+j)*data_size;
+            char *outp = outdata+(i*v_size+j)*data_size;
             std::copy(inp, inp+data_size, outp);
         }
     }
