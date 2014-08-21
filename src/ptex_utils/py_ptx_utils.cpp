@@ -39,6 +39,7 @@ Py_merge_ptex(PyObject *, PyObject* args){
     int *offsets = 0;
     Py_ssize_t input_len;
     Ptex::String err_msg;
+    int status;
 
     if(!PyArg_ParseTuple(args, "Oet:merge_ptex", &input_list,
                          Py_FileSystemDefaultEncoding,
@@ -73,7 +74,10 @@ Py_merge_ptex(PyObject *, PyObject* args){
         bytes_objects[i] = item;
 	input_files[i] = PyBytes_AsString(item);
     }
-    if (ptex_merge((int) input_len, input_files, output, offsets, err_msg)){
+    Py_BEGIN_ALLOW_THREADS
+    status = ptex_merge((int) input_len, input_files, output, offsets, err_msg);
+    Py_END_ALLOW_THREADS
+    if (status){
 	PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
 	goto exit;
     }
@@ -103,14 +107,17 @@ Py_reverse_ptex(PyObject *, PyObject* args){
     char *input = 0;
     char *output = 0;
     Ptex::String err_msg;
+    int status;
     if(!PyArg_ParseTuple(args, "etet:reverse_ptex",
                          Py_FileSystemDefaultEncoding, &input,
                          Py_FileSystemDefaultEncoding, &output))
 	return 0;
-    int res = ptex_reverse(input, output, err_msg);
+    Py_BEGIN_ALLOW_THREADS
+    status = ptex_reverse(input, output, err_msg);
+    Py_END_ALLOW_THREADS
     PyMem_Free(input);
     PyMem_Free(output);
-    if (res){
+    if (status){
 	PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
         return 0;
     }
