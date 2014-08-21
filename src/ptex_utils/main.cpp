@@ -1,23 +1,31 @@
 #include <stdlib.h>
 #include <iostream>
 #include <iomanip>
+#include <string.h>
 
 #include "ptex_util.hpp"
 
 #ifdef _WINDOWS
-static
-const char * basename(const char*i) {
-    const char *c = i+(strlen(i));
-    while (c != i && !(c == '/' || c == '\\'))
-        ++c;
-    return c;
+static char *basename(char *s)
+{
+    size_t i;
+    if (!s || !*s) return ".";
+    i = strlen(s)-1;
+    for (; i&&s[i]=='/'; i--) s[i] = 0;
+    for (; i&&s[i-1]!='/'; i--);
+    return s+i;
 }
+#else
+#include <libgen.h>
 #endif
 
 int do_ptex_merge(int argc, const char** argv) {
     if (argc < 5) {
-        std::cerr<<"Usage:"<<std::endl<<basename(argv[0])
+        char *prog = strdup(argv[0]);
+        std::cerr<<"Usage:"<<std::endl
+                 <<basename(prog)
                  <<" merge input.ptx input2.ptx [input3.ptx ..] output.ptx"<<std::endl;
+        free(prog);
 	return -1;
     }
     int nfiles = argc-3;
@@ -37,8 +45,11 @@ int do_ptex_merge(int argc, const char** argv) {
 
 int do_ptex_reverse(int argc, const char** argv) {
     if (argc != 4) {
+        char *prog = strdup(argv[0]);
         std::cerr<<"Usage:"<<std::endl
-                 <<basename(argv[0])<<" reverse input.ptx output.ptx"<<std::endl;
+                 <<basename(prog)
+                 <<" reverse input.ptx output.ptx"<<std::endl;
+        free(prog);
         return -1;
     }
     Ptex::String err_msg;
