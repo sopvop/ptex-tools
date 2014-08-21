@@ -4,11 +4,9 @@ project(ptextools CXX)
 set(PYTHON_INSTALL_DIR "python" CACHE PATH "python module install dir")
 set(BIN_INSTALL_DIR "bin" CACHE PATH "executable install dir")
 
-set(Boost_USE_STATIC_LIBS ON CACHE BOOL "Link to static boost_python")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(PTex REQUIRED)
-
-find_package(Boost REQUIRED python)
 find_package(ZLIB REQUIRED)
 
 find_package(PythonInterp REQUIRED)

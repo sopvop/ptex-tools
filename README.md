@@ -8,7 +8,6 @@ Dependencies
 
 - cmake 2.8.10 or newer
 - ptex 2.0 or newer
-- boost 1.48 or newer
 - python 2.7
 
 Building
@@ -26,7 +25,6 @@ Configure options
 
 - `BIN_INSTALL_DIR` - where to install executable files, default `bin`
 - `PYTHON_INSTALL_DIR` - where to install python modules, default `python`
-- `Boost_USE_STATIC_LIBS` - use static boost_python library, default `ON`
 
 Options for finding python executable/libraries are from cmake FindPython*.cmake modules
 in your installation.

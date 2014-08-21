@@ -1,13 +1,11 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(SYSTEM ${PTEX_INCLUDE_DIRS}
-                           ${PYTHON_INCLUDE_DIRS}
-                           ${Boost_INCLUDE_DIRS})
+include_directories(SYSTEM ${PTEX_INCLUDE_DIR}
+                           ${PYTHON_INCLUDE_DIRS})
 
 set(SRC ptex_merge.cpp ptex_reverse.cpp)
 
 PYTHON_ADD_MODULE(cptexutils ${SRC} py_ptx_utils.cpp)
 target_link_libraries(cptexutils ${PTEX_LIBRARY}
-                                 ${Boost_LIBRARIES}
                                  ${PYTHON_LIBRARIES}
                                  ${ZLIB_LIBRARIES})
 
