@@ -23,8 +23,11 @@ Building
 Configure options
 -----------------
 
-- `BIN_INSTALL_DIR` - where to install executable files, default `bin`
-- `PYTHON_INSTALL_DIR` - where to install python modules, default `python`
+- `BIN_INSTALL_DIR` - where to install executable files, default `bin`.
+- `PYTHON_INSTALL_DIR` - where to install python modules, default `python`.
+- `PTEX_LOCATION` - ptex library installation root, by default is empty.
+- `PTEX_INCLUDE_DIR` - path to PTex includes.
+- `PTEX_LIBARY` - path to PTex library.
 
 Options for finding python executable/libraries are from cmake FindPython*.cmake modules
 in your installation.
