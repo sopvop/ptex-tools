@@ -3,6 +3,24 @@ ptex-tools
 
 Tools for working with ptex textures
 
+Usage
+-----
+
+    > ptex-tool reverse input.ptx output.ptx
+
+Reverse winding order in ptx texture. Useful when you need to render
+alembic geometry with texture created from maya model.
+
+    > ptex-tool merge input.ptx input2.ptx [input3.ptx ..] output.ptx
+    0:input.ptx
+    555:input2.ptx
+    1337:input3.ptx
+
+Merge ptex textures into one. Outputs offsets for accessing individual textures.
+All textures should have same format.
+
+Also includes `ptexutls` python module exposing this functionality. 
+
 Dependencies
 ------------
 
