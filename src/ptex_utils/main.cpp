@@ -19,6 +19,8 @@ static char *basename(char *s)
 #include <libgen.h>
 #endif
 
+using namespace ptex_tools;
+
 int do_ptex_merge(int argc, const char** argv) {
     if (argc < 5) {
         char *prog = strdup(argv[0]);

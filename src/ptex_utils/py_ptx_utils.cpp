@@ -1,6 +1,8 @@
 #include <Python.h>
 #include "ptex_util.hpp"
 
+using namespace ptex_tools;
+
 static PyObject*
 as_fs_string(PyObject *obj){
     PyObject* result = 0;

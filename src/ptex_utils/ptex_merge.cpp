@@ -5,6 +5,7 @@
 #include "ptex_util.hpp"
 
 using std::vector;
+
 struct InputTex {
     InputTex(int ioffset, PtexTexture *tex)
 	:offset(ioffset), ptex(tex){}
@@ -95,9 +96,9 @@ int append_ptexture(PtexWriter *writer, int offset, PtexTexture *ptex){
     return 0;
 }
 
-int ptex_merge(int nfiles, const char** files,
-	       const char*output_file, int *offsets,
-	       Ptex::String &err_msg){
+int ptex_tools::ptex_merge(int nfiles, const char** files,
+                           const char*output_file, int *offsets,
+                           Ptex::String &err_msg){
 
     InputInfo info;
     if (nfiles < 2){

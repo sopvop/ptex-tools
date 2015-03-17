@@ -115,9 +115,9 @@ prepare_faceinfo(face_map &subface_map, const Ptex::FaceInfo &face_info)
     return out_face;
 }
 
-int ptex_reverse(const char* file,
-                 const char *output_file,
-                 Ptex::String &err_msg)
+int ptex_tools::ptex_reverse(const char* file,
+                             const char *output_file,
+                             Ptex::String &err_msg)
 {
 
     PtexTexture* input( PtexTexture::open(file, err_msg, false));

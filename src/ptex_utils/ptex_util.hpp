@@ -16,18 +16,16 @@
 #define SMAPI SMIMPORT
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
+namespace ptex_tools {
+SMAPI
 int ptex_merge(int nfiles, const char** files,
 	       const char* output_file, int *offsets,
 	       Ptex::String &err_msg);
 
+SMAPI
 int ptex_reverse(const char* file,
                  const char* output_file,
                  Ptex::String &err_msg);
-#ifdef __cplusplus
-}
-#endif
 
+}
