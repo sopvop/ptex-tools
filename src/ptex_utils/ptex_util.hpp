@@ -28,4 +28,10 @@ int ptex_reverse(const char* file,
                  const char* output_file,
                  Ptex::String &err_msg);
 
+SMAPI
+int make_constant(const char* file,
+                  Ptex::DataType dt, int nchannels, int alphachan,
+                  const void* data,
+                  int nfaces, int32_t *nverts, int32_t *verts,
+                  float* pos, Ptex::String &err_msg);
 }
