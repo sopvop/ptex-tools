@@ -53,7 +53,6 @@ struct half_face {
 struct Mesh {
     std::vector<half_edge> edges;
     std::vector<half_face> faces;
-
     Mesh(int nfaces, int nedges)
         : edges(nedges)
         , faces(nfaces)
@@ -188,14 +187,15 @@ void assign_subface_adjacency(half_edge *parent) {
 
 static
 void subdiv_mesh(MeshBuilder &builder, int nfaces, int *nverts, int *vertices) {
-    int next_v = last_vertex(nfaces, nverts, vertices) + 1;
+    int next_v = last_vertex(nfaces, nverts, vertices)+1;
     auto split = [&](const half_edge *e) -> int {
         half_edge * op = opposite(e);
         if (op && op->sub_face) {
             return next_face(op->sub_face->first)->v;
         }
-        else
+        else {
             return next_v++;
+        }
     };
 
     std::array<int,4> verts;
@@ -240,7 +240,6 @@ void subdiv_mesh(MeshBuilder &builder, int nfaces, int *nverts, int *vertices) {
             first->sub_face = f;
         }
     }
-    fflush(stdout);
     for (int face_id = 0; face_id < nfaces; ++face_id) {
         half_face &face = builder.mesh->faces[face_id];
         half_edge *first = face.first;
@@ -292,50 +291,48 @@ int adjacent_edge(const half_edge *e) {
 }
 
 static
-void make_faceinfos(const Mesh &mesh, std::vector<Ptex::FaceInfo> &infos)
+void write_data(PtexWriter *w, const Mesh &mesh, const void* data)
 {
-    std::vector<half_face> faces;
-    std::copy_if(begin(mesh.faces), end(mesh.faces),
-                 std::back_inserter(faces),
-                 [](const half_face &f) -> bool {
-                     return f.ptex_index >= 0;
-                 });
-    std::sort(begin(faces), end(faces),
-              [](const half_face &a, const half_face &b) -> int {
-                  return a.ptex_index < b.ptex_index;
-              });
-    infos.reserve(faces.size());
     Ptex::Res res(0,0);
     int adjfaces[4];
     int adjedges[4];
-    for (const half_face &face : faces) {
-        half_edge *e1 = face.first;
-        printf("%i %i\n", face.ptex_index, face.face_index);
-        half_edge *e2 = next_face(e1);
-        half_edge *e3 = next_face(e2);
-        half_edge *e4 = next_face(e3);
-        adjfaces[0] = adjacent_face(e1);
-        adjfaces[1] = adjacent_face(e2);
-        adjfaces[2] = adjacent_face(e3);
-        adjfaces[3] = adjacent_face(e4);
-        adjedges[0] = adjacent_edge(e1);
-        adjedges[1] = adjacent_edge(e2);
-        adjedges[2] = adjacent_edge(e3);
-        adjedges[3] = adjacent_edge(e4);
-        infos.push_back(Ptex::FaceInfo(res, adjfaces, adjedges, face.is_subface));
+
+    for (const half_face &face : mesh.faces) {
+        if (face.ptex_index >= 0) {
+            half_edge *e1 = face.first;
+            half_edge *e2 = next_face(e1);
+            half_edge *e3 = next_face(e2);
+            half_edge *e4 = next_face(e3);
+            adjfaces[0] = adjacent_face(e1);
+            adjfaces[1] = adjacent_face(e2);
+            adjfaces[2] = adjacent_face(e3);
+            adjfaces[3] = adjacent_face(e4);
+            adjedges[0] = adjacent_edge(e1);
+            adjedges[1] = adjacent_edge(e2);
+            adjedges[2] = adjacent_edge(e3);
+            adjedges[3] = adjacent_edge(e4);
+
+            Ptex::FaceInfo info(res, adjfaces, adjedges, face.is_subface);
+            w->writeConstantFace(face.ptex_index, info, data);
+        }
     }
+
 }
 
 int ptex_tools::make_constant(const char* file,
-                              Ptex::DataType dt, int nchannels, int alphachan,
+                              Ptex::DataType dt,
+                              int nchannels,
+                              int alphachan,
                               const void* data,
-                              int nfaces, int *nverts, int *verts,
-                              int npos, float* pos, Ptex::String &err_msg)
+                              int nfaces, int32_t *nverts, int32_t *verts,
+                              float* pos, Ptex::String &err_msg)
 {
 
-    int ptex_faces = 0;
-    int total_faces = 0;
-    int total_edges = 0;
+    int ptex_faces = 0;  //total faces in ptex file
+    int total_faces = 0; //faces count after subdivision
+    int total_edges = 0; //edge count after subdivision
+    int vcount = 0;      //vertex count
+    int fvcount = 0;     //face-vertex count
     for (int face = 0; face < nfaces; ++face) {
         int nv = nverts[face];
         if (nv == 4) {
@@ -347,16 +344,23 @@ int ptex_tools::make_constant(const char* file,
             total_faces += nv +1;
             total_edges += nv*4 + nv;
         }
+        for (int i = fvcount; i < fvcount + nv; ++i) {
+            vcount = std::max(verts[i], vcount);
+        }
+        fvcount += nv;
+
     }
+    ++vcount;
     Mesh mesh(total_faces, total_edges);
     build_mesh(mesh, nfaces, nverts, verts);
     std::vector<Ptex::FaceInfo> infos;
-    make_faceinfos(mesh, infos);
     PtexWriter *w = PtexWriter::open(file, Ptex::mt_quad, dt, nchannels, alphachan,
                                      ptex_faces, err_msg, true);
-    for (size_t i = 0; i < infos.size(); ++i) {
-        Ptex::FaceInfo &info = infos[i];
-        w->writeConstantFace(i, info, data);
+    write_data(w, mesh, data);
+    if (pos) {
+        w->writeMeta("PtexFaceVertCounts",  nverts, nfaces);
+        w->writeMeta("PtexFaceVertIndices", verts,  fvcount);
+        w->writeMeta("PtexVertPositions",   pos,    vcount*3);
     }
     w->release();
     return 0;

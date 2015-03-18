@@ -7,8 +7,8 @@
 
 struct obj_mesh {
     std::vector<float> pos;
-    std::vector<int> nverts;
-    std::vector<int> verts;
+    std::vector<int32_t> nverts;
+    std::vector<int32_t> verts;
 };
 
 

@@ -32,8 +32,6 @@ SMAPI
 int make_constant(const char* file,
                   Ptex::DataType dt, int nchannels, int alphachan,
                   const void* data,
-                  int nfaces, int *nverts, int *verts,
-                  int npos, float* pos, Ptex::String &err_msg);
-
-
+                  int nfaces, int32_t *nverts, int32_t *verts,
+                  float* pos, Ptex::String &err_msg);
 }
