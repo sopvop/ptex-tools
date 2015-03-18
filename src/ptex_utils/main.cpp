@@ -147,9 +147,9 @@ int parse_constant_options(constant_options &o, int argc, const char** argv)
                 o.datatype = Ptex::dt_uint8;
             else if (dt == "uint16")
                 o.datatype = Ptex::dt_uint16;
-            else if (dt == "half")
+            else if (dt == "half" || dt == "float16")
                 o.datatype = Ptex::dt_half;
-            else if (dt == "float")
+            else if (dt == "float" || dt == "float32")
                 o.datatype = Ptex::dt_float;
             else {
                 std::cerr<<"Invalid datatype specified\n";

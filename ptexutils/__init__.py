@@ -1,2 +1,2 @@
-__all__=['merge_ptex', 'reverse_ptex']
-from cptexutils import merge_ptex, reverse_ptex
+__all__=['merge_ptex', 'reverse_ptex', 'make_constant']
+from cptexutils import merge_ptex, reverse_ptex, make_constant

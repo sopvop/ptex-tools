@@ -110,7 +110,6 @@ int parse_line(obj_mesh &mesh, char *buf, Ptex::String &err_msg) {
     return 0;
 }
 
-static
 int check_consistency(const obj_mesh &mesh, Ptex::String &err_msg) {
     if (mesh.nverts.size() == 0) {
         err_msg = "Mesh has no faces";

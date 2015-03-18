@@ -1,5 +1,12 @@
+#include <cmath>
+#include <limits>
+
 #include <Python.h>
+
+#include <PtexHalf.h>
+
 #include "ptex_util.hpp"
+#include "objreader.hpp"
 
 using namespace ptex_tools;
 
@@ -126,9 +133,176 @@ Py_reverse_ptex(PyObject *, PyObject* args){
     Py_RETURN_NONE;
 }
 
+template <typename Conv, typename Vec, typename T>
+static
+int read_sequence(PyObject *seq, Conv conv, Vec & vec, T) {
+    Py_ssize_t len = PySequence_Length(seq);
+    vec.reserve(len);
+    for (Py_ssize_t i = 0; i < len; ++i) {
+        PyObject* item = PySequence_Fast_GET_ITEM(seq, i);
+        T v = conv(item);
+        if (PyErr_Occurred())
+            return -1;
+        vec.push_back(v);
+    }
+    return 0;
+}
+
+template <typename T>
+T clamp(const T& n, const T& lower, const T& upper) {
+  return std::max(lower, std::min(n, upper));
+}
+static PyObject*
+Py_make_constant(PyObject *, PyObject* args, PyObject *kws) {
+    char *output = 0;
+
+    char *cformat = 0;
+
+    int alphachan = -1;
+
+    PyObject *data = 0, *nverts = 0, *verts = 0, *pos = 0;
+
+    PyObject *sdata = 0, *snverts = 0, *sverts = 0, *spos = 0;
+
+    static const char *keywords[] = { "filename", "format", "data", "nverts", "verts", "pos",
+                                      "alphachannel", NULL};
+    if(!PyArg_ParseTupleAndKeywords(args, kws, "etetOOOO|i:make_constant",
+                                    (char **) keywords,
+                                    Py_FileSystemDefaultEncoding, &output,
+                                    Py_FileSystemDefaultEncoding, &cformat,
+                                    &data, &nverts, &verts, &pos, &alphachan))
+        return 0;
+
+    obj_mesh mesh;
+
+    Ptex::DataType dt;
+    Ptex::String err_msg;
+    std::vector<float> vdata;
+    std::vector<uint8_t> vdata8;
+    std::vector<uint16_t> vdata16;
+    int nchans = 0;
+    void *ptx_data;
+    std::string format(cformat);
+
+    bool err = 0;
+
+    sdata = PySequence_Fast(data, "third argument should be sequence of floats");
+    if (sdata == 0)
+	goto exit;
+
+    snverts = PySequence_Fast(nverts, "nverts should be sequence of ints");
+    if (sdata == 0)
+	goto exit;
+
+    sverts = PySequence_Fast(verts, "verts should be sequence of ints");
+    if (sdata == 0)
+	goto exit;
+
+    spos = PySequence_Fast(pos, "pos should be sequence of floats");
+    if (sdata == 0)
+	goto exit;
+
+    err = read_sequence(snverts,  PyInt_AsLong, mesh.nverts, (long) 1);
+    if (err) {
+	PyErr_SetString(PyExc_TypeError, "nverts should be ints");
+        goto exit;
+    }
+    err = read_sequence(sverts,  PyInt_AsLong, mesh.verts, (long) 1);
+    if (err) {
+	PyErr_SetString(PyExc_TypeError, "verts should be ints");
+        goto exit;
+    }
+
+    err = read_sequence(spos, PyFloat_AsDouble, mesh.pos, 1.0);
+    if (err) {
+	PyErr_SetString(PyExc_TypeError, "pos should be floats");
+        goto exit;
+    }
+
+    err = read_sequence(sdata, PyFloat_AsDouble, vdata, 1.0);
+    if (err) {
+	PyErr_SetString(PyExc_TypeError, "data should be floats");
+        goto exit;
+    }
+
+    if (format == "uint8") {
+        dt = Ptex::dt_uint8;
+        for (float v : vdata) {
+            vdata8.push_back(clamp((int) std::lround(v*255), 0,
+                                (int) std::numeric_limits<uint8_t>::max()));
+        }
+        ptx_data = vdata8.data();
+    }
+    else if (format == "uint16") {
+        dt = Ptex::dt_uint16;
+        for (float v : vdata) {
+            vdata16.push_back(clamp((int) std::lround(v*std::numeric_limits<uint16_t>::max()),
+                                    0,
+                                    (int) std::numeric_limits<uint16_t>::max()));
+        }
+        ptx_data = vdata16.data();
+
+    }
+    else if (format == "float16" || format == "half") {
+        dt = Ptex::dt_half;
+        for (float v : vdata) {
+            PtexHalf h(v);
+            vdata16.push_back(h.bits);
+        }
+        ptx_data = vdata16.data();
+    }
+    else if (format == "float" || format == "float32") {
+        dt = Ptex::dt_float;
+        ptx_data = vdata.data();
+    }
+    else {
+        err = -1;
+        PyErr_SetString(PyExc_ValueError,
+                        "format should be uint8, uint16, half (float16) or float (float32)");
+        goto exit;
+    }
+
+    if (check_consistency(mesh, err_msg)) {
+        err = -1;
+        PyErr_Format(PyExc_ValueError,
+                     "Mesh has inconsistent data: %s", err_msg.c_str());
+        goto exit;
+    }
+
+    nchans = vdata.size();
+
+    if (alphachan < -1 || alphachan > nchans) {
+        err = -1;
+        PyErr_SetString(PyExc_ValueError, "invalid alpha channel specified");
+        goto exit;
+    }
+
+    Py_BEGIN_ALLOW_THREADS;
+    err = ptex_tools::make_constant(output, dt, nchans, alphachan,
+                                    ptx_data,
+                                    mesh.nverts.size(), mesh.nverts.data(), mesh.verts.data(),
+                                    mesh.pos.data(), err_msg);
+    Py_END_ALLOW_THREADS;
+    if (err) {
+        PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
+    }
+  exit:
+    PyMem_Free(output);
+    PyMem_Free(cformat);
+    Py_XDECREF(sdata);
+    Py_XDECREF(snverts);
+    Py_XDECREF(sverts);
+    Py_XDECREF(spos);
+    if (err)
+        return 0;
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef ptexutils_methods [] = {
     { "merge_ptex", Py_merge_ptex, METH_VARARGS, "merge ptex files"},
     { "reverse_ptex", Py_reverse_ptex, METH_VARARGS, "reverse faces in ptex file"},
+    { "make_constant", (PyCFunction) Py_make_constant, METH_VARARGS | METH_KEYWORDS,
+      "create constant ptex file"},
     { NULL, NULL, 0, NULL }
 };
 
