@@ -35,6 +35,22 @@ int do_ptex_merge(int argc, const char** argv) {
     return 0;
 }
 
+int do_ptex_remerge(int argc, const char** argv) {
+    std::string prog = strbasename(argv[0]);
+    if (argc < 4) {
+        std::cerr<<"usage: " << prog <<" merge search/dir texture.ptx\n";
+	return -1;
+    }
+    Ptex::String err_msg;
+    int status = ptex_remerge(argv[3], argv[2], err_msg);
+    if (status) {
+        std::cerr<<err_msg.c_str()<<"\n";
+        return status;
+    }
+    return status;
+
+}
+
 int do_ptex_reverse(int argc, const char** argv) {
     std::string prog = strbasename(argv[0]);
     if (argc != 4) {
@@ -176,13 +192,13 @@ int parse_constant_options(constant_options &o, int argc, const char** argv)
     o.objfile = *opts++;
     o.ptxfile = *opts++;
 
-    if (o.alphachannel != -1 && o.alphachannel > (int) o.channels) {
-        std::cerr<<"Alpha channel out of range\n";
-        return -1;
-    }
-
     if (o.channels == 0) {
         o.channels = o.data.size();
+    }
+
+    if (o.alphachannel != -1 && o.alphachannel >= (int) o.channels) {
+        std::cerr<<"Alpha channel out of range\n";
+        return -1;
     }
 
     if (o.data.size() == 0)
@@ -243,7 +259,7 @@ int do_ptex_constant(int argc, const char** argv) {
 
     obj_mesh mesh;
     if (parse_obj(opts.objfile, mesh, err_msg)) {
-        std::cerr<<"Error reading "<<argv[2] <<": "
+        std::cerr<<"Error reading "<< opts.objfile <<": "
                  <<err_msg.c_str()<<"\n";
         return -1;
     }
@@ -254,28 +270,40 @@ int do_ptex_constant(int argc, const char** argv) {
                       opts.alphachannel, data,
                       mesh.nverts.size(), mesh.nverts.data(), mesh.verts.data(),
                       mesh.pos.data(), err_msg)) {
-        std::cerr<<"Error creating "<<argv[3]<<":"
+        std::cerr<<"Error creating "<<opts.ptxfile<<":"
                  <<err_msg.c_str()<<"\n";
         return -1;
     }
     return 0;
 }
 
+void usage(const char* name) {
+    std::cerr<<"usage: " << strbasename(name) << " <command> [<args>]\n\n"
+             <<"Commands are:\n"
+             <<"   merge     Merge several textures into one\n"
+             <<"   remerge   Update merged textures\n"
+             <<"   reverse   Reverse winding order in ptex\n"
+             <<"   constant  Create constant filled texture from obj file\n";
+};
+
 int main(int argc, const char** argv){
     if (argc < 2) {
-        std::cerr<<"Please specify tool: merge, reverse"<<std::endl;
+        usage(argv[0]);
         return -1;
     }
     std::string tool = argv[1];
     if (tool == "merge")
         return do_ptex_merge(argc, argv);
+    else if (tool == "remerge")
+        return do_ptex_remerge(argc, argv);
     else if (tool == "reverse")
         return do_ptex_reverse(argc, argv);
     else if (tool == "constant") {
         return do_ptex_constant(argc, argv);
     }
     else {
-        std::cerr<<"Unknown tool: "<<tool<<std::endl;;
+        std::cerr<<"Unknown tool: "<<tool<<"\n";
+        usage(argv[0]);
         return -1;
     }
 }

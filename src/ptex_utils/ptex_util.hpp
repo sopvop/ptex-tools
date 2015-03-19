@@ -24,6 +24,11 @@ int ptex_merge(int nfiles, const char** files,
 	       Ptex::String &err_msg);
 
 SMAPI
+int ptex_remerge(const char *file,
+                 const char *dir,
+                 Ptex::String &err_msg);
+
+SMAPI
 int ptex_reverse(const char* file,
                  const char* output_file,
                  Ptex::String &err_msg);

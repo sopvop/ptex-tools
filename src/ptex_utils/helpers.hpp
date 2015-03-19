@@ -17,3 +17,4 @@ struct releaser {
 
 using MetaPtr = std::unique_ptr<PtexMetaData, releaser<PtexMetaData> >;
 using PtxPtr = std::unique_ptr<PtexTexture, releaser<PtexTexture> >;
+using WriterPtr = std::unique_ptr<PtexWriter, releaser<PtexWriter> >;
