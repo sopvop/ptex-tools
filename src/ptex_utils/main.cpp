@@ -44,7 +44,7 @@ int do_ptex_merge(int argc, const char** argv) {
          return -1;
     }
     for (int i = 0; i < nfiles; ++i){
-	std::cout<<offsets[i]<<":"<<argv[i+1]<<std::endl;
+	std::cout<<offsets[i]<<":"<<argv[i+2]<<std::endl;
     }
     free(offsets);
     return 0;
