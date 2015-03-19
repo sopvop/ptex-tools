@@ -8,55 +8,39 @@
 #include <PtexHalf.h>
 
 #include "ptex_util.hpp"
-#include "objreader.hpp"
 
-#ifdef _WINDOWS
-static char *basename(char *s)
-{
-    size_t i;
-    if (!s || !*s) return ".";
-    i = strlen(s)-1;
-    for (; i&&s[i]=='/'; i--) s[i] = 0;
-    for (; i&&s[i-1]!='/'; i--);
-    return s+i;
-}
-#else
-#include <libgen.h>
-#endif
+#include "helpers.hpp"
+#include "objreader.hpp"
 
 using namespace ptex_tools;
 
 int do_ptex_merge(int argc, const char** argv) {
+    std::string prog = strbasename(argv[0]);
     if (argc < 5) {
-        char *prog = strdup(argv[0]);
         std::cerr<<"Usage:"<<std::endl
-                 <<basename(prog)
+                 << prog
                  <<" merge input.ptx input2.ptx [input3.ptx ..] output.ptx"<<std::endl;
-        free(prog);
 	return -1;
     }
     int nfiles = argc-3;
-    int *offsets = (int*) malloc(sizeof(int)*nfiles);
+    std::vector<int> offsets(nfiles);
     Ptex::String err_msg;
-    if (ptex_merge(nfiles, argv+2, argv[argc-1], offsets, err_msg)) {
+    if (ptex_merge(nfiles, argv+2, argv[argc-1], offsets.data(), err_msg)) {
          std::cerr<<err_msg.c_str()<<std::endl;
-         free(offsets);
          return -1;
     }
     for (int i = 0; i < nfiles; ++i){
 	std::cout<<offsets[i]<<":"<<argv[i+2]<<std::endl;
     }
-    free(offsets);
     return 0;
 }
 
 int do_ptex_reverse(int argc, const char** argv) {
+    std::string prog = strbasename(argv[0]);
     if (argc != 4) {
-        char *prog = strdup(argv[0]);
         std::cerr<<"Usage:"<<std::endl
-                 <<basename(prog)
+                 <<prog
                  <<" reverse input.ptx output.ptx"<<std::endl;
-        free(prog);
         return -1;
     }
     Ptex::String err_msg;
@@ -68,11 +52,9 @@ int do_ptex_reverse(int argc, const char** argv) {
 }
 
 void constant_usage(const char* name) {
-    char *prog = strdup(name);
     std::cerr<<"Usage:\n"
-             <<basename(prog)
+             << strbasename(name)
              <<" constant [opts] mesh.obj output.ptx\n";
-    free(prog);
 }
 void constant_help() {
     std::cerr<<"Options: -t DATATYPE\n"

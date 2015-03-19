@@ -4,7 +4,8 @@ include_directories(SYSTEM ${PTEX_INCLUDE_DIR}
 
 set(SRC ptex_merge.cpp ptex_reverse.cpp
   make_constant.cpp
-  objreader.cpp)
+  objreader.cpp
+  helpers.cpp)
 
 PYTHON_ADD_MODULE(cptexutils ${SRC} py_ptx_utils.cpp)
 target_link_libraries(cptexutils ${PTEX_LIBRARY}
