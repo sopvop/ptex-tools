@@ -1,17 +1,31 @@
-#include <vector>
+#include <algorithm>
+#include <memory>
 #include <string>
-#include <stdlib.h>
+#include <vector>
+
+#include "objreader.hpp"
 
 #include "ptex_util.hpp"
 
 using std::vector;
 
+template <typename T>
+struct releaser {
+    void operator()(T *r) const {
+        r->release();
+    }
+};
+
+using MetaPtr = std::unique_ptr<PtexMetaData, releaser<PtexMetaData> >;
+
 struct InputTex {
-    InputTex(int ioffset, PtexTexture *tex)
-	:offset(ioffset), ptex(tex){}
+    InputTex(int ioffset, int mesh_offset, PtexTexture *tex)
+	:offset(ioffset), mesh_offset(mesh_offset), ptex(tex){}
     int offset;
+    int mesh_offset;
     PtexTexture *ptex;
 };
+
 typedef vector<InputTex> InputList;
 struct InputInfo {
     ~InputInfo() {
@@ -25,8 +39,40 @@ struct InputInfo {
     int alpha_channel;
     int num_channels;
     int num_faces;
+    bool merge_mesh;
+    obj_mesh mesh;
     InputList inputs;
 };
+
+static
+int append_mesh(obj_mesh &mesh, PtexTexture *tex) {
+    MetaPtr meta(tex->getMetaData());
+
+    const int32_t *nverts;
+    const int32_t *verts;
+    const float *pos;
+    int face_count, verts_count, pos_count;
+    meta->getValue("PtexFaceVertCounts", nverts, face_count);
+    if (nverts == 0)
+        return 0;
+    meta->getValue("PtexFaceVertIndices", verts, verts_count);
+    if (verts == 0)
+        return 0;
+    meta->getValue("PtexVertPositions", pos, pos_count);
+    if (pos == 0)
+        return 0;
+
+    mesh.nverts.insert(end(mesh.nverts), nverts, nverts+face_count);
+    int offset = mesh.pos.size()/3;
+
+    mesh.verts.reserve(mesh.verts.size() + verts_count);
+
+    std::transform(verts, verts+verts_count, std::back_inserter(mesh.verts),
+                   [&](int32_t v)->int32_t { return v+offset; });
+    mesh.pos.insert(end(mesh.pos), pos, pos+pos_count);
+
+    return face_count;
+}
 
 static
 int append_input(InputInfo *info, const char* filename, Ptex::String &err_msg) {
@@ -61,8 +107,16 @@ int append_input(InputInfo *info, const char* filename, Ptex::String &err_msg) {
 	err_msg = err.c_str();
 	return -1;
     }
-    info->inputs.push_back(InputTex(info->num_faces, ptex));
+    int mesh_offset = 0;
+    if (info->merge_mesh) {
+        mesh_offset = info->mesh.nverts.size();
+        int nfaces = append_mesh(info->mesh, ptex);
+        info->merge_mesh = nfaces > 0;
+    }
+
+    info->inputs.push_back(InputTex(info->num_faces, mesh_offset, ptex));
     info->num_faces += ptex->numFaces();
+
     return 0;
 }
 
@@ -118,7 +172,9 @@ int ptex_tools::ptex_merge(int nfiles, const char** files,
     info.num_channels = first->numChannels();
     info.alpha_channel = first->alphaChannel();
     info.num_faces = first->numFaces();
-    info.inputs.push_back(InputTex(0, first));
+    int nfaces = append_mesh(info.mesh, first);
+    info.merge_mesh = nfaces > 0;
+    info.inputs.push_back(InputTex(0, 0, first));
 
     for (int i = 1; i < nfiles; i++){
 	if (append_input(&info, files[i], err_msg))
@@ -141,6 +197,19 @@ int ptex_tools::ptex_merge(int nfiles, const char** files,
 	int idx = std::distance(info.inputs.begin(), it);
 	offsets[idx] = it->offset;
     }
+
+    if (info.merge_mesh) {
+        writer->writeMeta("PtexFaceVertCounts",
+                          info.mesh.nverts.data(),
+                          info.mesh.nverts.size());
+        writer->writeMeta("PtexFaceVertIndices",
+                          info.mesh.verts.data(),
+                          info.mesh.verts.size());
+        writer->writeMeta("PtexVertPositions",
+                          info.mesh.pos.data(),
+                          info.mesh.pos.size());
+    }
+
     if (!writer->close(err_msg)){
 	writer->release();
 	return -1;
