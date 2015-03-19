@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -6,34 +7,9 @@
 #include "objreader.hpp"
 
 #include "ptex_util.hpp"
+#include "helpers.hpp"
 
-using std::vector;
-
-template <typename T>
-struct releaser {
-    void operator()(T *r) const {
-        r->release();
-    }
-};
-
-using MetaPtr = std::unique_ptr<PtexMetaData, releaser<PtexMetaData> >;
-
-struct InputTex {
-    InputTex(int ioffset, int mesh_offset, PtexTexture *tex)
-	:offset(ioffset), mesh_offset(mesh_offset), ptex(tex){}
-    int offset;
-    int mesh_offset;
-    PtexTexture *ptex;
-};
-
-typedef vector<InputTex> InputList;
 struct InputInfo {
-    ~InputInfo() {
-	for (InputList::iterator it = inputs.begin();
-	     it != inputs.end(); ++it){
-	    it->ptex->release();
-	}
-    }
     Ptex::DataType data_type;
     Ptex::MeshType mesh_type;
     int alpha_channel;
@@ -41,7 +17,15 @@ struct InputInfo {
     int num_faces;
     bool merge_mesh;
     obj_mesh mesh;
-    InputList inputs;
+
+    std::vector<PtxPtr> ptexes;
+    std::vector<int32_t> offsets;
+    std::vector<int32_t> mesh_offsets;
+    void add(int32_t offset, int32_t mesh_offset, PtexTexture *tex) {
+        offsets.push_back(offset);
+        mesh_offsets.push_back(mesh_offset);
+        ptexes.emplace_back(tex);
+    }
 };
 
 static
@@ -114,7 +98,7 @@ int append_input(InputInfo *info, const char* filename, Ptex::String &err_msg) {
         info->merge_mesh = nfaces > 0;
     }
 
-    info->inputs.push_back(InputTex(info->num_faces, mesh_offset, ptex));
+    info->add(info->num_faces, mesh_offset, ptex);
     info->num_faces += ptex->numFaces();
 
     return 0;
@@ -150,6 +134,7 @@ int append_ptexture(PtexWriter *writer, int offset, PtexTexture *ptex){
     return 0;
 }
 
+
 int ptex_tools::ptex_merge(int nfiles, const char** files,
                            const char*output_file, int *offsets,
                            Ptex::String &err_msg){
@@ -174,7 +159,7 @@ int ptex_tools::ptex_merge(int nfiles, const char** files,
     info.num_faces = first->numFaces();
     int nfaces = append_mesh(info.mesh, first);
     info.merge_mesh = nfaces > 0;
-    info.inputs.push_back(InputTex(0, 0, first));
+    info.add(0, 0, first);
 
     for (int i = 1; i < nfiles; i++){
 	if (append_input(&info, files[i], err_msg))
@@ -189,14 +174,12 @@ int ptex_tools::ptex_merge(int nfiles, const char** files,
 					  err_msg);
     if (!writer)
 	return -1;
-    for (InputList::iterator it = info.inputs.begin();
-	     it != info.inputs.end(); ++it)
+    for (int i = 0; i < nfiles; ++i)
     {
-	if(append_ptexture(writer, it->offset, it->ptex))
-	    return -1;
-	int idx = std::distance(info.inputs.begin(), it);
-	offsets[idx] = it->offset;
+	if(append_ptexture(writer, info.offsets[i], info.ptexes[i].get()))
+           return -1;
     }
+    std::copy(begin(info.offsets), end(info.offsets), offsets);
 
     if (info.merge_mesh) {
         writer->writeMeta("PtexFaceVertCounts",
@@ -208,6 +191,29 @@ int ptex_tools::ptex_merge(int nfiles, const char** files,
         writer->writeMeta("PtexVertPositions",
                           info.mesh.pos.data(),
                           info.mesh.pos.size());
+    }
+
+    std::vector<std::string> names;
+    std::transform(files, files+nfiles, std::back_inserter(names),
+                   [](const char* f) { return strbasename(f); });
+    size_t joined_size = std::accumulate(begin(names), end(names), 0,
+                                         [](size_t acc, const std::string &s) {
+                                             return acc+s.size();
+                                         });
+    joined_size += names.size()-1;
+    std::string joined;
+    joined.reserve(joined_size);
+    joined.append(names[0]);
+    for (auto it = begin(names)+1; it != end(names); ++it) {
+        joined.push_back(':');
+        joined.append(*it);
+    }
+    writer->writeMeta("PtexMergedFiles", joined.c_str());
+    writer->writeMeta("PtexMergedOffsets", info.offsets.data(), info.offsets.size());
+    if (info.merge_mesh) {
+        writer->writeMeta("PtexMergedMeshOffsets",
+                          info.mesh_offsets.data(),
+                          info.mesh_offsets.size());
     }
 
     if (!writer->close(err_msg)){
