@@ -42,10 +42,9 @@ as_fs_string(PyObject *obj){
 static PyObject*
 Py_merge_ptex(PyObject *, PyObject* args){
     PyObject *input_list = 0, *seq = 0, *item = 0, *result = 0;
-    PyObject **bytes_objects = 0;
-    const char **input_files = 0;
+
     char *output = 0;
-    int *offsets = 0;
+
     Py_ssize_t input_len;
     Ptex::String err_msg;
     int status;
@@ -54,6 +53,11 @@ Py_merge_ptex(PyObject *, PyObject* args){
                          Py_FileSystemDefaultEncoding,
                          &output))
 	return 0;
+
+    std::vector<const char*> input_files;
+    std::vector<PyObject*> bytes_objects;
+    std::vector<int> offsets;
+
     if (!PySequence_Check(input_list)) {
 	PyErr_SetString(PyExc_ValueError, "first argument should be sequence of filepaths");
 	goto exit;
@@ -67,11 +71,10 @@ Py_merge_ptex(PyObject *, PyObject* args){
 	goto exit;
     }
 
-    input_files = (const char**) malloc(sizeof(char*)*input_len);
-    bytes_objects = (PyObject **) malloc(sizeof(PyObject*) * input_len);
-    memset(bytes_objects, 0, sizeof(PyObject*) * input_len);
+    input_files.resize(input_len, 0);
+    bytes_objects.resize(input_len, 0);
+    offsets.resize(input_len, 0);
 
-    offsets = (int*) malloc(sizeof(int)*input_len);
     for (int i = 0; i < input_len; ++i){
 	//borrowing, do not decref
 	item = as_fs_string(PySequence_Fast_GET_ITEM(seq, i));
@@ -83,13 +86,16 @@ Py_merge_ptex(PyObject *, PyObject* args){
         bytes_objects[i] = item;
 	input_files[i] = PyBytes_AsString(item);
     }
-    Py_BEGIN_ALLOW_THREADS
-    status = ptex_merge((int) input_len, input_files, output, offsets, err_msg);
-    Py_END_ALLOW_THREADS
+
+    Py_BEGIN_ALLOW_THREADS;
+    status = ptex_merge((int) input_len, input_files.data(), output, offsets.data(), err_msg);
+    Py_END_ALLOW_THREADS;
+
     if (status){
 	PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
 	goto exit;
     }
+
     //now build result;
     result = PyList_New(input_len);
     for (int i = 0; i < input_len; ++i){
@@ -98,15 +104,10 @@ Py_merge_ptex(PyObject *, PyObject* args){
 	PyList_SetItem(result, i, item); //steals item
     }
   exit:
-    if (bytes_objects) {
-        for(int i = 0; i < input_len; ++i){
-            Py_XDECREF(bytes_objects[i]);
-        }
+    for (PyObject * o : bytes_objects) {
+        Py_XDECREF(o);
     }
     PyMem_Free(output);
-    free(bytes_objects);
-    free(input_files);
-    free(offsets);
     Py_XDECREF(seq);
     return result;
 }
