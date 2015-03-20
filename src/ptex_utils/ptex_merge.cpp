@@ -282,6 +282,10 @@ void split_names(const char* str, std::vector<std::string> &names) {
         names.push_back(str);
 }
 
+inline double mtime(const struct stat & st) {
+    return st.st_mtim.tv_sec + st.st_mtim.tv_nsec/1E9;
+};
+
 static
 int parse_remerge(InputInfo &info,
                   const char *file,
@@ -300,7 +304,7 @@ int parse_remerge(InputInfo &info,
         err_msg = "Can't stat file";
         return -1;
     }
-    time_t dtime = stat_info.st_mtime;
+    double dtime = mtime(stat_info);
 
     info.data_type     = ptx->dataType();
     info.mesh_type     = ptx->meshType();
@@ -334,7 +338,7 @@ int parse_remerge(InputInfo &info,
     for (size_t i = 0; i < names.size(); ++i) {
         std::string full_name = dir + "/" + names[i];
         if(stat(full_name.c_str(), &stat_info ) == 0
-           && stat_info.st_mtime > dtime)
+           && mtime(stat_info) > dtime)
         {
             PtxPtr ptex(PtexTexture::open(full_name.c_str(), err_msg, 0));
             if (!ptex) {
