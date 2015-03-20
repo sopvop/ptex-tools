@@ -18,6 +18,20 @@
 
 
 namespace ptex_tools {
+
+struct PtexInfo {
+    Ptex::DataType data_type;
+    Ptex::MeshType mesh_type;
+    int num_channels;
+    int alpha_channel;
+    Ptex::BorderMode u_border_mode;
+    Ptex::BorderMode v_border_mode;
+    int num_faces;
+    bool has_edits;
+    bool has_mip_maps;
+    int num_meta_keys;
+};
+
 SMAPI
 int ptex_merge(int nfiles, const char** files,
 	       const char* output_file, int *offsets,
@@ -39,4 +53,8 @@ int make_constant(const char* file,
                   const void* data,
                   int nfaces, int32_t *nverts, int32_t *verts,
                   float* pos, Ptex::String &err_msg);
+
+SMAPI
+int ptex_info(const char* file, PtexInfo &info, Ptex::String &err_msg);
+
 }

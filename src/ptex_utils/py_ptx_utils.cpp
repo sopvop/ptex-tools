@@ -112,6 +112,29 @@ Py_merge_ptex(PyObject *, PyObject* args){
 }
 
 static PyObject*
+Py_remerge_ptex(PyObject *, PyObject* args)
+{
+    char *filename = 0, *searchdir = 0;
+    if(!PyArg_ParseTuple(args, "etet:remerge_ptex",
+                         Py_FileSystemDefaultEncoding, &filename,
+                         Py_FileSystemDefaultEncoding, &searchdir))
+	return 0;
+
+    Ptex::String err_msg;
+    int status = 0;
+    Py_BEGIN_ALLOW_THREADS;
+    status = ptex_remerge(filename, searchdir, err_msg);
+    Py_END_ALLOW_THREADS;
+    PyMem_Free(filename);
+    PyMem_Free(searchdir);
+    if (status) {
+        PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
+        return 0;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject*
 Py_reverse_ptex(PyObject *, PyObject* args){
     char *input = 0;
     char *output = 0;
@@ -298,11 +321,50 @@ Py_make_constant(PyObject *, PyObject* args, PyObject *kws) {
     Py_RETURN_NONE;
 }
 
+static PyObject*
+Py_ptex_info(PyObject *, PyObject *args) {
+    char *filename;
+
+    if(!PyArg_ParseTuple(args, "et:ptex_info",
+                         Py_FileSystemDefaultEncoding, &filename)) {
+        return 0;
+    }
+
+    PtexInfo info;
+    Ptex::String err_msg;
+
+    int status = 0;
+    Py_BEGIN_ALLOW_THREADS;
+    status = ptex_tools::ptex_info(filename, info, err_msg);
+    Py_END_ALLOW_THREADS;
+
+    PyMem_Free(filename);
+
+    if (status) {
+        PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
+        return 0;
+    }
+
+    return Py_BuildValue("{s:s, s:s, s:i, s:i, s:s, s:s, s:i, s:O, s:O, s:i}",
+                         "data_type", Ptex::DataTypeName(info.data_type),
+                         "mesh_type", Ptex::MeshTypeName(info.mesh_type),
+                         "num_channels", info.num_channels,
+                         "alpha_channel", info.alpha_channel,
+                         "u_border_mode", Ptex::BorderModeName(info.u_border_mode),
+                         "v_border_mode", Ptex::BorderModeName(info.v_border_mode),
+                         "num_faces", info.num_faces,
+                         "has_edits", info.has_edits ? Py_True : Py_False,
+                         "has_mip_maps", info.has_mip_maps ? Py_True : Py_False,
+                         "num_meta_keys", info.num_meta_keys);
+}
+
 static PyMethodDef ptexutils_methods [] = {
     { "merge_ptex", Py_merge_ptex, METH_VARARGS, "merge ptex files"},
+    { "remerge_ptex", Py_remerge_ptex, METH_VARARGS, "Update merged ptex"},
     { "reverse_ptex", Py_reverse_ptex, METH_VARARGS, "reverse faces in ptex file"},
     { "make_constant", (PyCFunction) Py_make_constant, METH_VARARGS | METH_KEYWORDS,
       "create constant ptex file"},
+    { "ptex_info", Py_ptex_info, METH_VARARGS, "Get information about ptex file"},
     { NULL, NULL, 0, NULL }
 };
 

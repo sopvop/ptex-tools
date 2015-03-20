@@ -3,6 +3,7 @@ include_directories(SYSTEM ${PTEX_INCLUDE_DIR}
                            ${PYTHON_INCLUDE_DIRS})
 set(SRC ptex_merge.cpp
         ptex_reverse.cpp
+        ptex_info.cpp
         make_constant.cpp
         objreader.cpp
         helpers.cpp)
