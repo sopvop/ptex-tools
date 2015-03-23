@@ -3,6 +3,8 @@ project(ptextools CXX)
 
 set(PYTHON_INSTALL_DIR "python" CACHE PATH "python module install dir")
 set(BIN_INSTALL_DIR "bin" CACHE PATH "executable install dir")
+set(INCLUDE_INSTALL_DIR "include" CACHE PATH "Include install dir")
+set(LIB_INSTALL_DIR "lib" CACHE PATH "Library install dir")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -25,3 +27,17 @@ add_subdirectory(src/ptex_utils)
 
 install(FILES ptexutils/__init__.py
   DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
+
+configure_file(PtexUtilsConfig.cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/src/ptex_utils/PtexUtilsConfig.cmake"
+  COPY_ONLY
+)
+
+install(
+  FILES
+    PtexUtilsConfig.cmake
+  DESTINATION
+    ${LIB_INSTALL_DIR}/cmake/ptexutils
+  COMPONENT
+    dev
+)

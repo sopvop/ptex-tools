@@ -2,22 +2,9 @@
 
 #include <Ptexture.h>
 
-#ifdef _MSC_VER
-#define SMIMPORT __declspec(dllinport)
-#define SMEXPORT __declspec(dllexport)
-#else
-#define SMIMPORT
-#define SMEXPORT __attribute__((visibility("default")))
-#endif
+#include "ptexutils_export.h"
 
-#ifdef SMBUILD_SHARED
-#define SMAPI SMEXPORT
-#else
-#define SMAPI SMIMPORT
-#endif
-
-
-namespace ptex_tools {
+namespace ptex_utils {
 
 struct PtexInfo {
     Ptex::DataType data_type;
@@ -32,29 +19,29 @@ struct PtexInfo {
     int num_meta_keys;
 };
 
-SMAPI
+PTEXUTILS_EXPORT
 int ptex_merge(int nfiles, const char** files,
 	       const char* output_file, int *offsets,
 	       Ptex::String &err_msg);
 
-SMAPI
+PTEXUTILS_EXPORT
 int ptex_remerge(const char *file,
                  const char *dir,
                  Ptex::String &err_msg);
 
-SMAPI
+PTEXUTILS_EXPORT
 int ptex_reverse(const char* file,
                  const char* output_file,
                  Ptex::String &err_msg);
 
-SMAPI
+PTEXUTILS_EXPORT
 int make_constant(const char* file,
                   Ptex::DataType dt, int nchannels, int alphachan,
                   const void* data,
                   int nfaces, int32_t *nverts, int32_t *verts,
                   float* pos, Ptex::String &err_msg);
 
-SMAPI
+PTEXUTILS_EXPORT
 int ptex_info(const char* file, PtexInfo &info, Ptex::String &err_msg);
 
 }

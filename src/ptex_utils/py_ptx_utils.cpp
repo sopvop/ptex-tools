@@ -5,10 +5,10 @@
 
 #include <PtexHalf.h>
 
-#include "ptex_util.hpp"
+#include "ptexutils.hpp"
 #include "objreader.hpp"
 
-using namespace ptex_tools;
+using namespace ptex_utils;
 
 static PyObject*
 as_fs_string(PyObject *obj){
@@ -302,7 +302,7 @@ Py_make_constant(PyObject *, PyObject* args, PyObject *kws) {
     }
 
     Py_BEGIN_ALLOW_THREADS;
-    err = ptex_tools::make_constant(output, dt, nchans, alphachan,
+    err = ptex_utils::make_constant(output, dt, nchans, alphachan,
                                     ptx_data,
                                     mesh.nverts.size(), mesh.nverts.data(), mesh.verts.data(),
                                     mesh.pos.data(), err_msg);
@@ -336,7 +336,7 @@ Py_ptex_info(PyObject *, PyObject *args) {
 
     int status = 0;
     Py_BEGIN_ALLOW_THREADS;
-    status = ptex_tools::ptex_info(filename, info, err_msg);
+    status = ptex_utils::ptex_info(filename, info, err_msg);
     Py_END_ALLOW_THREADS;
 
     PyMem_Free(filename);

@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "ptex_util.hpp"
+#include "ptexutils.hpp"
 
 struct half_face;
 
@@ -32,12 +32,13 @@ half_edge* prev_face(const half_edge *e) { return e->prev; };
 static
 half_edge* opposite(const half_edge *e) { return e->opposite; };
 
+/*
 static
 half_edge* next_vert(const half_edge *e) {
     half_edge *op = opposite(e);
     return op == 0 ? 0 : next_face(op);
 }
-
+*/
 static
 half_edge* prev_vert(half_edge *e) {
     return opposite(prev_face(e));
@@ -319,7 +320,7 @@ void write_data(PtexWriter *w, const Mesh &mesh, const void* data)
 
 }
 
-int ptex_tools::make_constant(const char* file,
+int ptex_utils::make_constant(const char* file,
                               Ptex::DataType dt,
                               int nchannels,
                               int alphachan,

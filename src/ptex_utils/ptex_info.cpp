@@ -1,8 +1,8 @@
-#include "ptex_util.hpp"
+#include "ptexutils.hpp"
 
 #include "helpers.hpp"
 
-int ptex_tools::ptex_info(const char* file, PtexInfo &info, Ptex::String &err_msg)
+int ptex_utils::ptex_info(const char* file, PtexInfo &info, Ptex::String &err_msg)
 {
 
     PtxPtr ptx(PtexTexture::open(file, err_msg, 0));

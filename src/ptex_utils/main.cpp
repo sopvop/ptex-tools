@@ -7,12 +7,12 @@
 
 #include <PtexHalf.h>
 
-#include "ptex_util.hpp"
+#include "ptexutils.hpp"
 
 #include "helpers.hpp"
 #include "objreader.hpp"
 
-using namespace ptex_tools;
+using namespace ptex_utils;
 
 int do_ptex_merge(int argc, const char** argv) {
     std::string prog = strbasename(argv[0]);

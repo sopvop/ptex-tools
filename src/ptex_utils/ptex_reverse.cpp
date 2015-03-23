@@ -1,8 +1,9 @@
-#include "ptex_util.hpp"
-#include <map>
 #include <algorithm>
-#include <vector>
 #include <iterator>
+#include <map>
+#include <vector>
+
+#include "ptexutils.hpp"
 
 static Ptex::EdgeId swap_edge(Ptex::EdgeId i) {
     switch((int) i) {
@@ -115,7 +116,7 @@ prepare_faceinfo(face_map &subface_map, const Ptex::FaceInfo &face_info)
     return out_face;
 }
 
-int ptex_tools::ptex_reverse(const char* file,
+int ptex_utils::ptex_reverse(const char* file,
                              const char *output_file,
                              Ptex::String &err_msg)
 {

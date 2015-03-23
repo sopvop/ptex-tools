@@ -9,7 +9,7 @@
 
 #include "objreader.hpp"
 
-#include "ptex_util.hpp"
+#include "ptexutils.hpp"
 #include "helpers.hpp"
 
 struct InputInfo {
@@ -180,7 +180,7 @@ int append_ptexture(const InputInfo &info, PtexWriter *writer, int offset, PtexT
 }
 
 
-int ptex_tools::ptex_merge(int nfiles, const char** files,
+int ptex_utils::ptex_merge(int nfiles, const char** files,
                            const char*output_file, int *offsets,
                            Ptex::String &err_msg){
 
@@ -362,7 +362,7 @@ int parse_remerge(InputInfo &info,
     return 0;
 }
 
-int ptex_tools::ptex_remerge(const char *file,
+int ptex_utils::ptex_remerge(const char *file,
                              const char *searchdir,
                              Ptex::String &err_msg)
 {
