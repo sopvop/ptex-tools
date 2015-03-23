@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <numeric>
-#include <unordered_map>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -60,22 +60,7 @@ struct Mesh {
         {}
 };
 
-size_t hash_combine( size_t lhs, size_t rhs ) {
-  lhs^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
-  return lhs;
-}
-
-struct pairhash {
-public:
-  template <typename T, typename U>
-  std::size_t operator()(const std::pair<T, U> &x) const
-  {
-      return hash_combine(std::hash<T>()(x.first), std::hash<U>()(x.second));
-  }
-};
-
-using edge_map_t = std::unordered_map<std::pair<int,int>, half_edge*, pairhash>;
-
+using edge_map_t = std::map<std::pair<int,int>, half_edge*>;
 struct MeshBuilder {
     Mesh *mesh;
     edge_map_t edge_map;

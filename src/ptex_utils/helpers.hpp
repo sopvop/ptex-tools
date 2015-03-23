@@ -7,7 +7,6 @@
 
 std::string strbasename(const char* s);
 
-
 template <typename T>
 struct releaser {
     void operator()(T *r) const {

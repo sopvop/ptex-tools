@@ -173,9 +173,11 @@ int read_sequence(PyObject *seq, Conv conv, Vec & vec, T) {
 }
 
 template <typename T>
+static
 T clamp(const T& n, const T& lower, const T& upper) {
   return std::max(lower, std::min(n, upper));
 }
+
 static PyObject*
 Py_make_constant(PyObject *, PyObject* args, PyObject *kws) {
     char *output = 0;
@@ -370,6 +372,15 @@ static PyMethodDef ptexutils_methods [] = {
 };
 
 extern "C" {
+#if defined(PyMODINIT_FUNC)
+#undef PyMODINIT_FUNC
+#endif
+
+#if defined(WIN32)
+#define PyMODINIT_FUNC extern "C" __declspec(dllexport) void
+#else
+#define PyMODINIT_FUNC extern "C" __attribute__((visibility("default"))) void
+#endif
 
 PyMODINIT_FUNC
 initcptexutils(void){

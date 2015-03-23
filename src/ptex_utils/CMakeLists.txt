@@ -25,7 +25,6 @@ target_link_libraries(ptexutils ${PTEX_LIBRARY}
 set_target_properties(ptexutils PROPERTIES
   SOVERSION 1.0)
 
-
 install(TARGETS ptexutils
   EXPORT PtexUtilsTargets
   LIBRARY DESTINATION ${LIB_INSTALL_DIR}
@@ -53,6 +52,9 @@ install(TARGETS ptex-tool DESTINATION ${BIN_INSTALL_DIR})
 
 
 PYTHON_ADD_MODULE(cptexutils ${SRC} py_ptx_utils.cpp)
+
+target_compile_definitions(cptexutils PRIVATE "-DPTEXUTILS_STATIC_DEFINE")
+
 target_link_libraries(cptexutils ${PTEX_LIBRARY}
                                  ${PYTHON_LIBRARIES}
                                  ${ZLIB_LIBRARIES})
