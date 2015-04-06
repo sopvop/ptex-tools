@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.10)
 project(ptextools CXX)
 
+
+set(ptexutils_VERSION 0.1.0)
+
 set(PYTHON_INSTALL_DIR "python" CACHE PATH "python module install dir")
 set(BIN_INSTALL_DIR "bin" CACHE PATH "executable install dir")
 set(INCLUDE_INSTALL_DIR "include" CACHE PATH "Include install dir")
@@ -28,6 +31,13 @@ add_subdirectory(src/ptex_utils)
 install(FILES ptexutils/__init__.py
   DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
 
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/PtexUtilsConfigVersion.cmake"
+  VERSION ${ptexutils_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
 configure_file(PtexUtilsConfig.cmake
   "${CMAKE_CURRENT_BINARY_DIR}/src/ptex_utils/PtexUtilsConfig.cmake"
   COPY_ONLY
@@ -36,6 +46,7 @@ configure_file(PtexUtilsConfig.cmake
 install(
   FILES
     PtexUtilsConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/PtexUtilsConfigVersion.cmake"
   DESTINATION
     ${LIB_INSTALL_DIR}/cmake/ptexutils
   COMPONENT
