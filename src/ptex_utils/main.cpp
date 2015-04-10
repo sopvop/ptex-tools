@@ -14,23 +14,151 @@
 
 using namespace ptex_utils;
 
+struct OptParse {
+    const char** opts = 0;
+    const char** endopt = 0;
+
+    OptParse(int nopts, const char** options)
+        : opts(options)
+        , endopt(options+nopts)
+        {}
+    const char* get_opt() {
+        if (opts == endopt)
+            return 0;
+        return opts[0];
+    }
+    const char* next_opt() {
+        if (opts == endopt)
+            return 0;
+        return *(++opts);
+    }
+    bool is_done() const { return opts == endopt; }
+    bool is_flag() const { return opts != endopt && opts[0][0] == '-'; }
+    int remains() const { return endopt - opts; }
+    void prev_opt() {
+        opts--;
+    }
+
+    bool int_opt(int *o) {
+        char* end = 0;
+        int v = strtol(opts[0], &end, 10);
+        if (end[0] != '\0')
+            return false;
+        *o = v;
+        return true;
+    }
+
+    bool double_opt(double *o) {
+        char* end = 0;
+        int v = strtod(opts[0], &end);
+        if (end[0] != '\0')
+            return false;
+        *o = v;
+        return true;
+    }
+};
+
+void merge_usage(const char* cprog) {
+    std::string prog = strbasename(cprog);
+    std::cerr
+        <<"Usage:\n"
+        << prog
+        <<" merge input.ptx input2.ptx [input3.ptx ..] output.ptx\n"
+        <<"    Will try to guess options from first input file\n\n"
+        << prog
+        <<" merge [options..] input.ptx input2.ptx [input3.ptx ..] output.ptx\n"
+        <<"  Will set options to default if not set\n\n"
+        <<"  -t DATATYPE\n"
+        <<"  --datatype DATATYPE Specify datatype, uint8, uint16, half or float\n"
+        <<"                      Default uint8\n\n"
+        <<"  -n N\n"
+        <<"  --channels N        Number of channels. Default 1\n\n"
+        <<"  -a N\n"
+        <<"  --alphachannel N    Alpha channel. Default -1\n\n";
+
+}
+
 int do_ptex_merge(int argc, const char** argv) {
     std::string prog = strbasename(argv[0]);
     if (argc < 5) {
-        std::cerr<<"Usage:"<<std::endl
-                 << prog
-                 <<" merge input.ptx input2.ptx [input3.ptx ..] output.ptx"<<std::endl;
+        merge_usage(argv[0]);
 	return -1;
     }
-    int nfiles = argc-3;
+
+    bool do_guess = true;
+    PtexMergeOptions o;
+    OptParse opts(argc-2, argv+2);
+    while(!opts.is_done() && opts.is_flag() ) {
+        do_guess = false;
+        std::string opt(opts.get_opt());
+        if (opt == "-t" || opt == "--datatype") {
+            if (!opts.next_opt()) {
+                merge_usage(argv[0]);
+                return -1;
+            }
+            std::string dt(opts.get_opt());
+            if (dt == "uint8")
+                o.data_type = Ptex::dt_uint8;
+            else if (dt == "uint16")
+                o.data_type = Ptex::dt_uint16;
+            else if (dt == "half" || dt == "float16")
+                o.data_type = Ptex::dt_half;
+            else if (dt == "float" || dt == "float32")
+                o.data_type = Ptex::dt_float;
+            else {
+                std::cerr<<"Invalid datatype specified\n";
+                return -1;
+            }
+        }
+        else if(opt == "-n" || opt == "--channels") {
+            int n = 0;
+            if (!opts.next_opt() || !opts.int_opt(&n) || n <= 0) {
+                std::cerr<<"Invalid number of channels\n";
+                return -1;
+            }
+            o.num_channels = n;
+        }
+        else if (opt == "-a" || opt == "--alphachannel") {
+            if (!opts.next_opt() || !opts.int_opt(&o.alpha_channel) || o.alpha_channel < -1) {
+                std::cerr<<"Invalid alpha channel\n";
+                return -1;
+            }
+        }
+        else if (opt == "-h" || opt == "--help") {
+            merge_usage(argv[0]);
+            return 0;
+        }
+        else {
+            std::cerr<<"Unknown option: "<<opt<<"\n\n";
+            merge_usage(argv[0]);
+            return -1;
+        }
+        opts.next_opt();
+    }
+    if (o.alpha_channel != -1 && o.alpha_channel >= o.num_channels) {
+        std::cerr<<"Alpha channel out of range\n";
+        return -1;
+    }
+
+    int nfiles = opts.remains();
+    const char **files = opts.opts;
+
     std::vector<int> offsets(nfiles);
     Ptex::String err_msg;
-    if (ptex_merge(nfiles, argv+2, argv[argc-1], offsets.data(), err_msg)) {
-         std::cerr<<err_msg.c_str()<<std::endl;
-         return -1;
+    if (do_guess) {
+        if (ptex_merge(nfiles-1, files, files[nfiles-1], offsets.data(), err_msg)) {
+            std::cerr<<err_msg.c_str()<<std::endl;
+            return -1;
+        }
     }
-    for (int i = 0; i < nfiles; ++i){
-	std::cout<<offsets[i]<<":"<<argv[i+2]<<std::endl;
+    else {
+        if (ptex_merge(o, nfiles-1, files, files[nfiles-1], offsets.data(), err_msg)) {
+            std::cerr<<err_msg.c_str()<<std::endl;
+            return -1;
+        }
+    }
+    for (int i = 0; i < nfiles-1; ++i){
+	std::cout<<offsets[i]<<":"<<files[i]<<std::endl;
     }
     return 0;
 }
@@ -104,43 +232,16 @@ int parse_constant_options(constant_options &o, int argc, const char** argv)
         return -1;
     }
 
-    const char** opts = argv+2;
-    const char** endopt = argv + argc;
-    auto get_opt = [&]() ->const char* {
-        if (opts == endopt)
-            return 0;
-        return opts[0];
-    };
-    auto next_opt = [&]()-> const char* {
-        if (opts == endopt)
-            return 0;
-        return *(++opts);
-    };
-    auto int_opt = [&](int *o)->bool {
-        char* end = 0;
-        int v = strtol(opts[0], &end, 10);
-        if (end[0] != '\0')
-            return false;
-        *o = v;
-        return true;
-    };
-    auto double_opt = [&](double *o)->bool {
-        char* end = 0;
-        int v = strtod(opts[0], &end);
-        if (end[0] != '\0')
-            return false;
-        *o = v;
-        return true;
-    };
+    OptParse opts(argc-2, argv+2);
 
-    while(opts != endopt && opts[0][0] == '-') {
-        std::string opt = opts[0];
+    while(!opts.is_done() && opts.is_flag() ) {
+        std::string opt = opts.get_opt();
         if (opt == "-t" || opt == "--datatype") {
-            if (!next_opt()) {
+            if (!opts.next_opt()) {
                 constant_usage(argv[0]);
                 return -1;
             }
-            std::string dt(get_opt());
+            std::string dt(opts.get_opt());
             if (dt == "uint8")
                 o.datatype = Ptex::dt_uint8;
             else if (dt == "uint16")
@@ -156,14 +257,14 @@ int parse_constant_options(constant_options &o, int argc, const char** argv)
         }
         else if(opt == "-n" || opt == "--channels") {
             int n = 0;
-            if (!next_opt() || !int_opt(&n) || n <= 0) {
+            if (!opts.next_opt() || !opts.int_opt(&n) || n <= 0) {
                 std::cerr<<"Invalid number of channels\n";
                 return -1;
             }
             o.channels = n;
         }
         else if (opt == "-a" || opt == "--alphachannel") {
-            if (!next_opt() || !int_opt(&o.alphachannel) || o.alphachannel < -1) {
+            if (!opts.next_opt() || !opts.int_opt(&o.alphachannel) || o.alphachannel < -1) {
                 std::cerr<<"Invalid alpha channel\n";
                 return -1;
             }
@@ -171,26 +272,26 @@ int parse_constant_options(constant_options &o, int argc, const char** argv)
         else if(opt == "-d" || opt == "--data") {
             double v;
             bool status = false;
-            while (next_opt() && (status = double_opt(&v))) {
+            while (opts.next_opt() && (status = opts.double_opt(&v))) {
                 o.data.push_back(v);
             }
             if (!status)
-                opts--;
+                opts.prev_opt();
             if (o.data.size() == 0) {
                 std::cerr<<"No data specified\n";
                 return -1;
             }
 
         }
-        ++opts;
+        opts.next_opt();
     }
 
-    if (opts != endopt-2) {
+    if (opts.remains() != 2) {
         constant_usage(argv[0]);
         return -1;
     }
-    o.objfile = *opts++;
-    o.ptxfile = *opts++;
+    o.objfile = opts.next_opt();
+    o.ptxfile = opts.next_opt();
 
     if (o.channels == 0) {
         o.channels = o.data.size();

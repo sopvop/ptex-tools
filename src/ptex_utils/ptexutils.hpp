@@ -19,8 +19,25 @@ struct PtexInfo {
     int num_meta_keys;
 };
 
+struct PtexMergeOptions
+{
+    Ptex::DataType data_type = Ptex::dt_uint8;
+    Ptex::MeshType mesh_type = Ptex::mt_quad;
+    int num_channels = 1;
+    int alpha_channel = -1;
+    Ptex::BorderMode u_border_mode = Ptex::m_clamp;
+    Ptex::BorderMode v_border_mode = Ptex::m_clamp;
+    bool merge_mesh = true;
+};
+
 PTEXUTILS_EXPORT
 int ptex_merge(int nfiles, const char** files,
+	       const char* output_file, int *offsets,
+	       Ptex::String &err_msg);
+
+PTEXUTILS_EXPORT
+int ptex_merge(const PtexMergeOptions &opts,
+               int nfiles, const char** files,
 	       const char* output_file, int *offsets,
 	       Ptex::String &err_msg);
 

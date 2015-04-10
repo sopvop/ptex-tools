@@ -9,16 +9,18 @@
 
 #include "objreader.hpp"
 
+#include "PtexUtils.h"
 #include "ptexutils.hpp"
 #include "helpers.hpp"
 
+using PtexMergeOptions = ptex_utils::PtexMergeOptions;
+
 struct InputInfo {
-    Ptex::DataType data_type;
-    Ptex::MeshType mesh_type;
-    int alpha_channel;
-    int num_channels;
-    int num_faces;
-    bool merge_mesh;
+    PtexMergeOptions options;
+
+    int num_faces = 0;
+
+    bool merge_mesh = true;
     obj_mesh mesh;
 
     std::vector<PtxPtr> ptexes;
@@ -62,7 +64,7 @@ int append_mesh(obj_mesh &mesh, PtexTexture *tex) {
 }
 
 static
-int check_ptx(const InputInfo &info,
+int check_ptx(const PtexMergeOptions &info,
               PtexTexture *ptex,
               Ptex::String &err_msg) {
     /*
@@ -81,14 +83,14 @@ int check_ptx(const InputInfo &info,
 	err_msg = err.c_str();
 	return -1;
     }
-    if (ptex->numChannels() != info.num_channels){
-	std::string err = std::string("Number of channels does not match wifh first file: ")
+    if (ptex->numChannels() < info.num_channels){
+	std::string err = std::string("Not enough channels in file: ")
 	    + ptex->path();
 	err_msg = err.c_str();
 	return -1;
     }
 
-    if (ptex->alphaChannel() != info.alpha_channel){
+    if (ptex->alphaChannel() != info.alpha_channel && info.alpha_channel != -1){
 	std::string err = std::string("Alpha channel does not match wifh first file: ")
 	    + ptex->path();
 	err_msg = err.c_str();
@@ -103,13 +105,13 @@ int append_input(InputInfo &info, const char* filename, Ptex::String &err_msg) {
     if (!ptex) {
 	return -1;
     }
-    if (check_ptx(info, ptex.get(), err_msg))
+    if (check_ptx(info.options, ptex.get(), err_msg))
         return -1;
     int mesh_offset = 0;
     if (info.merge_mesh) {
         mesh_offset = info.mesh.nverts.size();
         int nfaces = append_mesh(info.mesh, ptex.get());
-        info.merge_mesh = nfaces > 0;
+        info.options.merge_mesh = nfaces > 0;
     }
 
     int nf = ptex->numFaces();
@@ -120,57 +122,73 @@ int append_input(InputInfo &info, const char* filename, Ptex::String &err_msg) {
 }
 
 static
-int append_ptexture(const InputInfo &info, PtexWriter *writer, int offset, PtexTexture *ptex) {
+int append_ptexture(const PtexMergeOptions &info,
+                    PtexWriter *writer,
+                    const int offset,
+                    PtexTexture *ptex) {
 
-    int num_faces = ptex->numFaces();
-    int nchannels = ptex->numChannels();
-    Ptex::DataType data_type = ptex->dataType();
-    int data_block_size = Ptex::DataSize(data_type) * nchannels;
-    int out_block_size = Ptex::DataSize(info.data_type)*nchannels;
+    const int num_faces = ptex->numFaces();
+    const int nchannels = ptex->numChannels();
+    const Ptex::DataType data_type = ptex->dataType();
+
+    const int data_pixel_size = Ptex::DataSize(data_type) * nchannels;
+    const int stripped_pixel_size = Ptex::DataSize(data_type) * info.num_channels;
+    const int out_pixel_size = Ptex::DataSize(info.data_type)*info.num_channels;
 
     std::vector<char> data;
-    data.resize(data_block_size*1024);
+    data.resize(data_pixel_size*1024);
 
-    bool do_convert = info.data_type != ptex->dataType();
+    const bool strip_chans = nchannels > info.num_channels;
+
+    const bool do_convert = info.data_type != ptex->dataType();
+
     std::vector<float> fdata;
     std::vector<char> odata;
 
     if (do_convert) {
-        fdata.resize(nchannels*1024);
-        odata.resize(out_block_size*1024);
+        fdata.resize(info.num_channels*1024);
+        odata.resize(out_pixel_size*1024);
     }
+
     for (int i = 0; i < num_faces; ++i) {
-	Ptex::FaceInfo face_info = ptex->getFaceInfo(i);
-	//copy dat shit
-	Ptex::FaceInfo outf = face_info;
+	Ptex::FaceInfo outf = ptex->getFaceInfo(i);
 	outf.adjfaces[0] = outf.adjfaces[0] == -1 ? -1 : outf.adjfaces[0] + offset;
 	outf.adjfaces[1] = outf.adjfaces[1] == -1 ? -1 : outf.adjfaces[1] + offset;
 	outf.adjfaces[2] = outf.adjfaces[2] == -1 ? -1 : outf.adjfaces[2] + offset;
 	outf.adjfaces[3] = outf.adjfaces[3] == -1 ? -1 : outf.adjfaces[3] + offset;
 
-	size_t req_size = outf.res.size()*data_block_size;
+	size_t req_size = outf.res.size()*data_pixel_size;
 	if (req_size > data.size()){
 	    data.resize(req_size);
             if (do_convert) {
-                fdata.resize(outf.res.size()*nchannels);
-                odata.resize(outf.res.size()*out_block_size);
+                fdata.resize(outf.res.size()*info.num_channels);
+                odata.resize(outf.res.size()*out_pixel_size);
             }
 	}
         // This is slow and bad
+        ptex->getData(i, data.data(), 0);
+        if (strip_chans && !outf.isConstant()) {
+            char *dst = data.data()+stripped_pixel_size;
+            char *src = data.data()+data_pixel_size;
+            char *end = data.data()+stripped_pixel_size*outf.res.size();
+            while (dst != end) {
+                std::memmove(dst, src, stripped_pixel_size);
+                dst += stripped_pixel_size;
+                src += data_pixel_size;
+            }
+        }
         if (do_convert) {
-            ptex->getData(i, data.data(), 0);
             Ptex::ConvertToFloat(fdata.data(), data.data(), data_type,
-                                 nchannels*outf.res.size());
+                                 info.num_channels*outf.res.size());
             Ptex::ConvertFromFloat(odata.data(), fdata.data(),
-                                   info.data_type, nchannels*outf.res.size());
-            if (face_info.isConstant())
+                                   info.data_type, info.num_channels*outf.res.size());
+            if (outf.isConstant())
                 writer->writeConstantFace(offset+i, outf, odata.data());
             else
-                writer->writeFace(offset+i, outf, odata.data());
+                writer->writeFace(offset+i, outf, odata.data(), 0);
         }
         else {
-            ptex->getData(i, data.data(), 0);
-            if (face_info.isConstant())
+            if (outf.isConstant())
                 writer->writeConstantFace(offset+i, outf, data.data());
             else
                 writer->writeFace(offset+i, outf, data.data());
@@ -182,9 +200,35 @@ int append_ptexture(const InputInfo &info, PtexWriter *writer, int offset, PtexT
 
 int ptex_utils::ptex_merge(int nfiles, const char** files,
                            const char*output_file, int *offsets,
+                           Ptex::String &err_msg)
+{
+    PtexMergeOptions options;
+    if (nfiles > 0) {
+        PtxPtr first(PtexTexture::open(files[0], err_msg, 0));
+        if (!first) {
+            return -1;
+        }
+        options.data_type = first->dataType();
+        options.mesh_type = first->meshType();
+        options.num_channels = first->numChannels();
+        options.alpha_channel = first->alphaChannel();
+
+        options.u_border_mode = first->uBorderMode();
+        options.v_border_mode = first->vBorderMode();
+    }
+    return ptex_utils::ptex_merge(options, nfiles, files, output_file,
+                                  offsets, err_msg);
+
+}
+
+int ptex_utils::ptex_merge(const PtexMergeOptions & opts,
+                           int nfiles, const char** files,
+                           const char*output_file, int *offsets,
                            Ptex::String &err_msg){
 
     InputInfo info;
+    info.options = opts;
+
     if (nfiles < 2){
 	err_msg = "At least 2 files needed";
 	return -1;
@@ -193,35 +237,22 @@ int ptex_utils::ptex_merge(int nfiles, const char** files,
 	err_msg = "Output file is null";
 	return -1;
     }
-    PtxPtr first(PtexTexture::open(files[0], err_msg, 0));
-    if (!first) {
-	return -1;
-    }
-    info.data_type = first->dataType();
-    info.mesh_type = first->meshType();
-    info.num_channels = first->numChannels();
-    info.alpha_channel = first->alphaChannel();
-    info.num_faces = first->numFaces();
-    int nfaces = append_mesh(info.mesh, first.get());
-    info.merge_mesh = nfaces > 0;
-    info.add(0, 0, first);
-
-    for (int i = 1; i < nfiles; i++){
+    for (int i = 0; i < nfiles; i++){
 	if (append_input(info, files[i], err_msg))
 	    return -1;
     }
     PtexWriter *writer = PtexWriter::open(output_file,
-					  info.mesh_type,
-					  info.data_type,
-					  info.num_channels,
-					  info.alpha_channel,
+					  info.options.mesh_type,
+					  info.options.data_type,
+					  info.options.num_channels,
+					  info.options.alpha_channel,
 					  info.num_faces,
 					  err_msg);
     if (!writer)
 	return -1;
     for (int i = 0; i < nfiles; ++i)
     {
-	if(append_ptexture(info, writer, info.offsets[i], info.ptexes[i].get()))
+	if(append_ptexture(info.options, writer, info.offsets[i], info.ptexes[i].get()))
            return -1;
     }
     std::copy(begin(info.offsets), end(info.offsets), offsets);
@@ -306,10 +337,10 @@ int parse_remerge(InputInfo &info,
     }
     double dtime = mtime(stat_info);
 
-    info.data_type     = ptx->dataType();
-    info.mesh_type     = ptx->meshType();
-    info.num_channels  = ptx->numChannels();
-    info.alpha_channel = ptx->alphaChannel();
+    info.options.data_type     = ptx->dataType();
+    info.options.mesh_type     = ptx->meshType();
+    info.options.num_channels  = ptx->numChannels();
+    info.options.alpha_channel = ptx->alphaChannel();
     info.num_faces     = ptx->numFaces();
 
     MetaPtr meta(ptx->getMetaData());
@@ -344,7 +375,7 @@ int parse_remerge(InputInfo &info,
             if (!ptex) {
                 return -1;
             }
-            if (check_ptx(info, ptex.get(), err_msg))
+            if (check_ptx(info.options, ptex.get(), err_msg))
                 return 2;
             if ( (i != names.size() -1 && offsets[i+1]-offsets[i] < ptex->numFaces())
                  ||  (info.num_faces - offsets[i]) < ptex->numFaces())
@@ -374,10 +405,10 @@ int ptex_utils::ptex_remerge(const char *file,
         return status;
 
     WriterPtr writer(PtexWriter::edit(file, false,
-                                      info.mesh_type,
-                                      info.data_type,
-                                      info.num_channels,
-                                      info.alpha_channel,
+                                      info.options.mesh_type,
+                                      info.options.data_type,
+                                      info.options.num_channels,
+                                      info.options.alpha_channel,
                                       info.num_faces,
                                       err_msg));
     if (!writer)
@@ -385,7 +416,9 @@ int ptex_utils::ptex_remerge(const char *file,
 
     for (size_t i = 0; i < names.size(); ++i) {
         if (info.ptexes[i]) {
-            if (append_ptexture(info, writer.get(), info.offsets[i], info.ptexes[i].get())) {
+            if (append_ptexture(info.options, writer.get(), info.offsets[i],
+                                info.ptexes[i].get()))
+            {
                 return -1;
             }
         }
