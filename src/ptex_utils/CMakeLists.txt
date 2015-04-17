@@ -19,8 +19,11 @@ add_library(ptexutils SHARED ${SRC})
 
 generate_export_header(ptexutils)
 
-target_link_libraries(ptexutils ${PTEX_LIBRARY}
-                               ${ZLIB_LIBRARY})
+target_link_libraries(ptexutils PRIVATE
+  ${PTEX_LIBRARY}
+  ${ZLIB_LIBRARY}
+  Boost::filesystem
+  Boost::system)
 
 set_target_properties(ptexutils PROPERTIES
   SOVERSION 1.0)
@@ -46,8 +49,9 @@ install(EXPORT PtexUtilsTargets
 
 add_executable(ptex-tool ${SRC} main.cpp)
 target_link_libraries(ptex-tool ${PTEX_LIBRARY}
-                                ${ZLIB_LIBRARY})
-
+                                ${ZLIB_LIBRARY}
+				Boost::filesystem
+				Boost::system)
 install(TARGETS ptex-tool DESTINATION ${BIN_INSTALL_DIR})
 
 
@@ -57,7 +61,9 @@ target_compile_definitions(cptexutils PRIVATE "-DPTEXUTILS_STATIC_DEFINE")
 
 target_link_libraries(cptexutils ${PTEX_LIBRARY}
                                  ${PYTHON_LIBRARIES}
-                                 ${ZLIB_LIBRARIES})
+                                 ${ZLIB_LIBRARIES}
+				 Boost::filesystem
+				 Boost::system)
 
 install(TARGETS cptexutils
   DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)

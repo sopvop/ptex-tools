@@ -19,6 +19,15 @@ struct PtexInfo {
     int num_meta_keys;
 };
 
+struct PtexMeta
+{
+    int32_t size;
+    Ptex::MetaDataType *types;
+    const char **keys;
+    int *counts;
+    const void **data;
+};
+
 struct PtexMergeOptions
 {
     Ptex::DataType data_type = Ptex::dt_uint8;
@@ -28,6 +37,10 @@ struct PtexMergeOptions
     Ptex::BorderMode u_border_mode = Ptex::m_clamp;
     Ptex::BorderMode v_border_mode = Ptex::m_clamp;
     bool merge_mesh = true;
+    bool (*callback) (int, void*) = 0;
+    void *callback_data = 0;
+    const char *root = 0;
+    PtexMeta * meta = 0;
 };
 
 PTEXUTILS_EXPORT

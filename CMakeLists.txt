@@ -16,6 +16,14 @@ find_package(ZLIB REQUIRED)
 
 find_package(PythonInterp REQUIRED)
 find_package(PythonLibs REQUIRED)
+find_package(Boost COMPONENTS filesystem system REQUIRED)
+
+message("BBB ${Boost_FILESYSTEM_LIBRARY}")
+add_library(Boost::filesystem UNKNOWN IMPORTED)
+set_property(TARGET Boost::filesystem PROPERTY IMPORTED_LOCATION ${Boost_FILESYSTEM_LIBRARY})
+
+add_library(Boost::system UNKNOWN IMPORTED)
+set_property(TARGET Boost::system PROPERTY IMPORTED_LOCATION ${Boost_SYSTEM_LIBRARY})
 
 if ( NOT PYTHON_VERSION_STRING VERSION_EQUAL  PYTHONLIBS_VERSION_STRING )
   message ( FATAL_ERROR "Version mismatch between python interpreter and libraries")

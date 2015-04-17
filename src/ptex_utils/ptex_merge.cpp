@@ -4,8 +4,7 @@
 #include <string>
 #include <vector>
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <boost/filesystem.hpp>
 
 #include "objreader.hpp"
 
@@ -14,6 +13,8 @@
 #include "helpers.hpp"
 
 using PtexMergeOptions = ptex_utils::PtexMergeOptions;
+namespace fs = boost::filesystem;
+namespace sys = boost::system;
 
 struct InputInfo {
     PtexMergeOptions options;
@@ -67,18 +68,8 @@ static
 int check_ptx(const PtexMergeOptions &info,
               PtexTexture *ptex,
               Ptex::String &err_msg) {
-    /*
-    if (ptex->dataType() != info.data_type){
-	std::string err = std::string("Data type does not match with first file: ")
-	    + ptex->path()
-	    + " expected: " + Ptex::DataTypeName(info.data_type)
-	    + " got:" + Ptex::DataTypeName(ptex->dataType());
-	err_msg = err.c_str();
-	return -1;
-    }
-    */
     if (ptex->meshType() != info.mesh_type){
-	std::string err = std::string("Mesh type does not match with first file: ")
+	std::string err = std::string("Mesh type does not match: ")
 	    + ptex->path();
 	err_msg = err.c_str();
 	return -1;
@@ -91,7 +82,7 @@ int check_ptx(const PtexMergeOptions &info,
     }
 
     if (ptex->alphaChannel() != info.alpha_channel && info.alpha_channel != -1){
-	std::string err = std::string("Alpha channel does not match wifh first file: ")
+	std::string err = std::string("Alpha channel does not match: ")
 	    + ptex->path();
 	err_msg = err.c_str();
 	return -1;
@@ -103,6 +94,8 @@ static
 int append_input(InputInfo &info, const char* filename, Ptex::String &err_msg) {
     PtxPtr ptex(PtexTexture::open(filename, err_msg, 0));
     if (!ptex) {
+        err_msg = std::string("Opening input file: ") + filename +
+            ":" + std::string(err_msg.c_str());
 	return -1;
     }
     if (check_ptx(info.options, ptex.get(), err_msg))
@@ -206,6 +199,7 @@ int ptex_utils::ptex_merge(int nfiles, const char** files,
     if (nfiles > 0) {
         PtxPtr first(PtexTexture::open(files[0], err_msg, 0));
         if (!first) {
+            err_msg = std::string(files[0]) + ":"+ std::string(err_msg.c_str());
             return -1;
         }
         options.data_type = first->dataType();
@@ -221,6 +215,61 @@ int ptex_utils::ptex_merge(int nfiles, const char** files,
 
 }
 
+static
+fs::path strip_prefix(const fs::path & path, const fs::path &prefix)
+{
+    auto i = std::begin(path);
+    auto iend = std::end(path);
+    auto p = std::begin(prefix);
+    auto pend = std::end(prefix);
+    for (; i != iend && p != pend; ++i, ++p)
+    {
+        if (*i == *p)
+            continue;
+        else
+            break;
+    }
+    if (p != pend)
+        return path;
+
+    fs::path res;
+    for (; i != iend; ++i)
+        res /= *i;
+    return res;
+}
+
+static
+void write_meta_block(PtexWriter *writer, ptex_utils::PtexMeta *meta)
+{
+    for (int32_t i = 0; i < meta->size; ++i) {
+        Ptex::MetaDataType t = meta->types[i];
+        const char* key = meta->keys[i];
+        int count = meta->counts[i];
+        const void *data = meta->data[i];
+        switch (t) {
+        case Ptex::mdt_string:
+            writer->writeMeta(key, (const char*) data);
+            break;
+        case Ptex::mdt_int8:
+            writer->writeMeta(key, (const int8_t*) data, count);
+            break;
+        case Ptex::mdt_int16:
+            writer->writeMeta(key, (const int16_t*) data, count);
+            break;
+        case Ptex::mdt_int32:
+            writer->writeMeta(key, (const int32_t*) data, count);
+            break;
+        case Ptex::mdt_float:
+            writer->writeMeta(key, (const float*) data, count);
+            break;
+        case Ptex::mdt_double:
+            writer->writeMeta(key, (const double*) data, count);
+            break;
+        }
+    }
+
+}
+
 int ptex_utils::ptex_merge(const PtexMergeOptions & opts,
                            int nfiles, const char** files,
                            const char*output_file, int *offsets,
@@ -233,29 +282,54 @@ int ptex_utils::ptex_merge(const PtexMergeOptions & opts,
 	err_msg = "At least 2 files needed";
 	return -1;
     }
+
     if (output_file == 0){
 	err_msg = "Output file is null";
 	return -1;
     }
+
+    fs::path root = fs::absolute(opts.root ? fs::path(opts.root) : fs::current_path());
+
+    fs::path outpath = fs::absolute(output_file, root);
+
+    std::vector<fs::path> filepaths;
+    for (int i = 0; i < nfiles; ++i) {
+        fs::path p = fs::absolute(files[i], root);
+        filepaths.push_back(p);
+    }
+
     for (int i = 0; i < nfiles; i++){
-	if (append_input(info, files[i], err_msg))
+	if (append_input(info, filepaths[i].string().c_str(), err_msg))
 	    return -1;
     }
-    PtexWriter *writer = PtexWriter::open(output_file,
-					  info.options.mesh_type,
-					  info.options.data_type,
-					  info.options.num_channels,
-					  info.options.alpha_channel,
-					  info.num_faces,
-					  err_msg);
-    if (!writer)
+
+    WriterPtr writer(PtexWriter::open(output_file,
+                                      info.options.mesh_type,
+                                      info.options.data_type,
+                                      info.options.num_channels,
+                                      info.options.alpha_channel,
+                                      info.num_faces,
+                                      err_msg));
+    if (!writer) {
+        err_msg = "Can't open for writing " + std::string(output_file) + ":" + err_msg;
 	return -1;
+    }
     for (int i = 0; i < nfiles; ++i)
     {
-	if(append_ptexture(info.options, writer, info.offsets[i], info.ptexes[i].get()))
+        if (opts.callback) {
+            bool stop = opts.callback(i, opts.callback_data);
+            if (stop) {
+                err_msg = "Interrupted";
+                return -1;
+            }
+        }
+	if(append_ptexture(info.options, writer.get(), info.offsets[i], info.ptexes[i].get()))
            return -1;
     }
-    std::copy(begin(info.offsets), end(info.offsets), offsets);
+
+    if (offsets) {
+        std::copy(begin(info.offsets), end(info.offsets), offsets);
+    }
 
     if (info.merge_mesh) {
         writer->writeMeta("PtexFaceVertCounts",
@@ -270,8 +344,10 @@ int ptex_utils::ptex_merge(const PtexMergeOptions & opts,
     }
 
     std::vector<std::string> names;
-    std::transform(files, files+nfiles, std::back_inserter(names),
-                   [](const char* f) { return strbasename(f); });
+    std::transform(std::begin(filepaths), std::end(filepaths),std::back_inserter(names),
+                   [&](const fs::path p) {
+                       return strip_prefix(p, root).string();
+                   });
     size_t joined_size = std::accumulate(begin(names), end(names), 0,
                                          [](size_t acc, const std::string &s) {
                                              return acc+s.size();
@@ -291,12 +367,12 @@ int ptex_utils::ptex_merge(const PtexMergeOptions & opts,
                           info.mesh_offsets.data(),
                           info.mesh_offsets.size());
     }
-
+    if (opts.meta)
+        write_meta_block(writer.get(), opts.meta);
     if (!writer->close(err_msg)){
-	writer->release();
+        err_msg = "Closing writer " + std::string(output_file) + ":" + err_msg.c_str();
 	return -1;
     }
-    writer->release();
     return 0;
 }
 
@@ -313,10 +389,6 @@ void split_names(const char* str, std::vector<std::string> &names) {
         names.push_back(str);
 }
 
-inline double mtime(const struct stat & st) {
-    return st.st_mtim.tv_sec + st.st_mtim.tv_nsec/1E9;
-};
-
 static
 int parse_remerge(InputInfo &info,
                   const char *file,
@@ -329,13 +401,12 @@ int parse_remerge(InputInfo &info,
 	return -1;
     }
 
-    struct stat stat_info;
-
-    if(stat( file, &stat_info ) != 0 ) {
-        err_msg = "Can't stat file";
+    sys::error_code ec;
+    std::time_t dtime = fs::last_write_time(file, ec);
+    if (ec) {
+        err_msg = ec.message().c_str();
         return -1;
     }
-    double dtime = mtime(stat_info);
 
     info.options.data_type     = ptx->dataType();
     info.options.mesh_type     = ptx->meshType();
@@ -365,11 +436,13 @@ int parse_remerge(InputInfo &info,
         err_msg = "Number of offsets and file names in meta does not match";
         return -1;
     }
-    std::string dir(searchdir);
+    fs::path dir(searchdir);
     for (size_t i = 0; i < names.size(); ++i) {
-        std::string full_name = dir + "/" + names[i];
-        if(stat(full_name.c_str(), &stat_info ) == 0
-           && mtime(stat_info) > dtime)
+
+        fs::path full_name = dir / names[i];
+
+        std::time_t md = fs::last_write_time(full_name, ec);
+        if (!ec && md > dtime)
         {
             PtxPtr ptex(PtexTexture::open(full_name.c_str(), err_msg, 0));
             if (!ptex) {
@@ -404,6 +477,11 @@ int ptex_utils::ptex_remerge(const char *file,
     if (status)
         return status;
 
+    if (std::all_of(std::begin(info.ptexes),
+                    std::end(info.ptexes),
+                    [](const PtxPtr & p) -> bool { return !p; })) {
+        return 0;
+    }
     WriterPtr writer(PtexWriter::edit(file, false,
                                       info.options.mesh_type,
                                       info.options.data_type,
