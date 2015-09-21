@@ -324,6 +324,11 @@ Py_make_constant(PyObject *, PyObject* args, PyObject *kws) {
     Py_RETURN_NONE;
 }
 
+static const char* ptex_info__doc__ = 
+    "ptex_info(filename)\n"
+    "Interrogates ptex texture for basic info\n\n"
+    "param input:";
+
 static PyObject*
 Py_ptex_info(PyObject *, PyObject *args) {
     char *filename;
@@ -348,7 +353,7 @@ Py_ptex_info(PyObject *, PyObject *args) {
         return 0;
     }
 
-    return Py_BuildValue("{s:s, s:s, s:i, s:i, s:s, s:s, s:i, s:O, s:O, s:i}",
+    return Py_BuildValue("{s:s, s:s, s:i, s:i, s:s, s:s, s:i, s:O, s:O, s:i, s:k}",
                          "data_type", Ptex::DataTypeName(info.data_type),
                          "mesh_type", Ptex::MeshTypeName(info.mesh_type),
                          "num_channels", info.num_channels,
@@ -358,8 +363,119 @@ Py_ptex_info(PyObject *, PyObject *args) {
                          "num_faces", info.num_faces,
                          "has_edits", info.has_edits ? Py_True : Py_False,
                          "has_mip_maps", info.has_mip_maps ? Py_True : Py_False,
-                         "num_meta_keys", info.num_meta_keys);
+                         "num_meta_keys", info.num_meta_keys,
+                         "texels", (unsigned long long) info.texels);
 }
+
+static
+int ipow(int base, int exp)
+{
+    int result = 1;
+    while (exp)
+    {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        base *= base;
+    }
+    return result;
+}
+static
+bool to_log2(int input, int8_t &outp) {
+    if (input < 2 || input > 32768)
+        return false;
+    int inp = input;
+    int8_t log2 = 0;
+    while (inp >>= 1) ++log2;
+    if (ipow(2, log2) != input)
+        return false;
+    outp = log2;
+    return true;
+}
+
+
+static PyObject*
+Py_ptex_conform(PyObject *, PyObject *args, PyObject *kws) {
+    char* input = 0;
+    char* output = 0;
+    char* data_type = 0;
+    int downsteps = 0;
+    int clampsize = 0;
+
+    int status = 0;
+
+    bool do_convert = false;
+    Ptex::DataType dt = Ptex::dt_uint8;
+
+    int8_t down = 0;
+    int8_t clamp = 0;
+
+    Ptex::String err_msg;
+
+    static const char *keywords[] = { "input", "output",
+                                      "datatype", "downsize",
+                                      "clampsize", NULL};
+    if(!PyArg_ParseTupleAndKeywords(args, kws, "etet|sii:ptex_conform",
+                                    (char **) keywords,
+                                    Py_FileSystemDefaultEncoding, &input,
+                                    Py_FileSystemDefaultEncoding, &output,
+                                    &data_type, &downsteps, &clampsize))
+        return 0;
+
+    if (data_type != 0) {
+        do_convert = true;
+        if (strcmp(data_type, "uint8") == 0) {
+            dt = Ptex::dt_uint8;
+        } 
+        else if (strcmp(data_type, "uint16") == 0) {
+            dt = Ptex::dt_uint16;
+        }
+        else if (strcmp(data_type, "half") == 0) {
+            dt = Ptex::dt_half;
+        }
+        else if (strcmp(data_type, "float") == 0) {
+            dt = Ptex::dt_float;
+        } else {
+            status = -1;
+            PyErr_SetString(PyExc_ValueError, "Invalid data type. Expected: "
+                             "uint8, uint16, half or float");
+            goto cleanup;
+        }
+    }
+    if (clampsize != 0 && !to_log2(clampsize, clamp)) {
+        PyErr_SetString(PyExc_ValueError, "Invalid clampsize. Expected power of two integer");
+        status = -1;
+        goto cleanup;
+    }
+
+    if (downsteps != 0) {
+        if(downsteps < 0 || downsteps > 15) {
+            PyErr_SetString(PyExc_ValueError, "Invalid downsize. "
+                            "Expected integer in range 1 to 15 range");
+            status = -1;
+            goto cleanup;
+        }
+        else {
+            down = downsteps;
+        }
+    }
+    Py_BEGIN_ALLOW_THREADS;
+    status = ptex_conform(input, output, down, clamp, do_convert, dt, err_msg);
+    Py_END_ALLOW_THREADS;
+    if (status) {
+        PyErr_SetString(PyExc_RuntimeError, err_msg.c_str());
+    }
+
+  cleanup:
+    PyMem_Free(input);
+    PyMem_Free(output);
+
+    if (status)
+        return 0;
+    else
+        Py_RETURN_NONE;
+}
+
 
 static PyMethodDef ptexutils_methods [] = {
     { "merge_ptex", Py_merge_ptex, METH_VARARGS, "merge ptex files"},
@@ -367,7 +483,9 @@ static PyMethodDef ptexutils_methods [] = {
     { "reverse_ptex", Py_reverse_ptex, METH_VARARGS, "reverse faces in ptex file"},
     { "make_constant", (PyCFunction) Py_make_constant, METH_VARARGS | METH_KEYWORDS,
       "create constant ptex file"},
-    { "ptex_info", Py_ptex_info, METH_VARARGS, "Get information about ptex file"},
+    { "ptex_info", Py_ptex_info, METH_VARARGS,ptex_info__doc__}, // "Get information about ptex file"},
+    { "ptex_conform", (PyCFunction) Py_ptex_conform, METH_VARARGS | METH_KEYWORDS,
+      "conform ptex datatype and sizes" },
     { NULL, NULL, 0, NULL }
 };
 

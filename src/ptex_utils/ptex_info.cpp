@@ -27,5 +27,11 @@ int ptex_utils::ptex_info(const char* file, PtexInfo &info, Ptex::String &err_ms
     MetaPtr meta(ptx->getMetaData());
     info.num_meta_keys = meta->numKeys();
 
+    info.texels = 0;
+    for (int face_id = 0; face_id < info.num_faces; ++face_id) {
+        const Ptex::FaceInfo &face_info = ptx->getFaceInfo(face_id);
+        info.texels += face_info.res.size();
+    }
+
     return 0;
 }

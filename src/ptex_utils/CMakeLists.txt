@@ -7,7 +7,9 @@ set(SRC ptex_merge.cpp
         ptex_reverse.cpp
         ptex_info.cpp
         make_constant.cpp
+	ptex_conform.cpp
         objreader.cpp
+        mesh.cpp
         helpers.cpp)
 
 include(GenerateExportHeader)
@@ -26,7 +28,7 @@ target_link_libraries(ptexutils PRIVATE
   Boost::system)
 
 set_target_properties(ptexutils PROPERTIES
-  SOVERSION 1.0)
+  SOVERSION 1.1)
 
 install(TARGETS ptexutils
   EXPORT PtexUtilsTargets
@@ -50,9 +52,13 @@ install(EXPORT PtexUtilsTargets
 add_executable(ptex-tool ${SRC} main.cpp)
 target_link_libraries(ptex-tool ${PTEX_LIBRARY}
                                 ${ZLIB_LIBRARY}
-				Boost::filesystem
-				Boost::system)
+                                Boost::filesystem
+                                Boost::system)
 install(TARGETS ptex-tool DESTINATION ${BIN_INSTALL_DIR})
+
+set_target_properties(ptex-tool
+  PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib;"
+)
 
 
 PYTHON_ADD_MODULE(cptexutils ${SRC} py_ptx_utils.cpp)
@@ -62,9 +68,8 @@ target_compile_definitions(cptexutils PRIVATE "-DPTEXUTILS_STATIC_DEFINE")
 target_link_libraries(cptexutils ${PTEX_LIBRARY}
                                  ${PYTHON_LIBRARIES}
                                  ${ZLIB_LIBRARIES}
-				 Boost::filesystem
-				 Boost::system)
+                                 Boost::filesystem
+                                 Boost::system)
 
 install(TARGETS cptexutils
   DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
-

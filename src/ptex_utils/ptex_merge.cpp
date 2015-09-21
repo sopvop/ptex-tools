@@ -278,8 +278,8 @@ int ptex_utils::ptex_merge(const PtexMergeOptions & opts,
     InputInfo info;
     info.options = opts;
 
-    if (nfiles < 2){
-	err_msg = "At least 2 files needed";
+    if (nfiles < 1){
+	err_msg = "At least one file required";
 	return -1;
     }
 

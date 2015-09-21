@@ -2,7 +2,23 @@
 
 #include <Ptexture.h>
 
-#include "ptexutils_export.h"
+#if defined _WIN32 || defined __CYGWIN__
+  #define PTEXUTILS_IMPORT __declspec(dllimport)
+  #define PTEXUTILS_EXPORT __declspec(dllexport)
+#else
+  #define PTEXUTILS_IMPORT __attribute__ ((visibility ("default")))
+  #define PTEXUTILS_EXPORT __attribute__ ((visibility ("default")))
+#endif
+
+#ifdef PTEXUTILS_SHARED
+  #ifdef PTEXUTILS_EXPORTS
+    #define PTEXUTILS_API PTEXUTILS_EXPORT
+  #else
+    #define PTEXUTILS_API PTEXUTILS_IMPORT
+  #endif
+#else
+  #define PTEXUTILS_API
+#endif
 
 namespace ptex_utils {
 
@@ -17,6 +33,7 @@ struct PtexInfo {
     bool has_edits;
     bool has_mip_maps;
     int num_meta_keys;
+    uint64_t texels;
 };
 
 struct PtexMeta
@@ -43,35 +60,57 @@ struct PtexMergeOptions
     PtexMeta * meta = 0;
 };
 
-PTEXUTILS_EXPORT
+PTEXUTILS_API
 int ptex_merge(int nfiles, const char** files,
 	       const char* output_file, int *offsets,
 	       Ptex::String &err_msg);
 
-PTEXUTILS_EXPORT
+PTEXUTILS_API
 int ptex_merge(const PtexMergeOptions &opts,
                int nfiles, const char** files,
 	       const char* output_file, int *offsets,
 	       Ptex::String &err_msg);
 
-PTEXUTILS_EXPORT
+PTEXUTILS_API
 int ptex_remerge(const char *file,
                  const char *dir,
                  Ptex::String &err_msg);
 
-PTEXUTILS_EXPORT
+PTEXUTILS_API
 int ptex_reverse(const char* file,
                  const char* output_file,
                  Ptex::String &err_msg);
 
-PTEXUTILS_EXPORT
+PTEXUTILS_API
 int make_constant(const char* file,
                   Ptex::DataType dt, int nchannels, int alphachan,
                   const void* data,
                   int nfaces, int32_t *nverts, int32_t *verts,
                   float* pos, Ptex::String &err_msg);
 
-PTEXUTILS_EXPORT
+PTEXUTILS_API
 int ptex_info(const char* file, PtexInfo &info, Ptex::String &err_msg);
+
+PTEXUTILS_API
+int32_t count_ptex_faces(int32_t nfaces, int32_t *nverts);
+
+PTEXUTILS_API
+void compute_adjacency(int32_t nfaces, int32_t *nverts, int32_t *verts,
+                       Ptex::FaceInfo *out);
+
+PTEXUTILS_API
+bool ptex_topology_match(int32_t n, const Ptex::FaceInfo *nfaces,
+                         const Ptex::FaceInfo *mfaces,
+                         int32_t noffset = 0, int32_t moffset = 0);
+
+PTEXUTILS_API
+int ptex_conform(const char* filename,
+                 const char* output_filename,
+                 int8_t downsteps,
+                 int8_t clampsize,
+                 bool change_datatype,
+                 Ptex::DataType out_dt,
+                 Ptex::String &err_msg);
+
 
 }
