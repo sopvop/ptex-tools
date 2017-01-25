@@ -9,24 +9,20 @@ set(BIN_INSTALL_DIR "bin" CACHE PATH "executable install dir")
 set(INCLUDE_INSTALL_DIR "include" CACHE PATH "Include install dir")
 set(LIB_INSTALL_DIR "lib" CACHE PATH "Library install dir")
 
+set(BUILD_PYTHON_MODULE ON CACHE BOOL "Should python module be built")
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(PTex REQUIRED)
 find_package(ZLIB REQUIRED)
-
-find_package(PythonInterp REQUIRED)
-find_package(PythonLibs REQUIRED)
 find_package(Boost COMPONENTS filesystem system REQUIRED)
+if (BUILD_PYTHON_MODULE)
+  find_package(PythonInterp REQUIRED)
+  find_package(PythonLibs REQUIRED)
 
-message("BBB ${Boost_FILESYSTEM_LIBRARY}")
-add_library(Boost::filesystem UNKNOWN IMPORTED)
-set_property(TARGET Boost::filesystem PROPERTY IMPORTED_LOCATION ${Boost_FILESYSTEM_LIBRARY})
-
-add_library(Boost::system UNKNOWN IMPORTED)
-set_property(TARGET Boost::system PROPERTY IMPORTED_LOCATION ${Boost_SYSTEM_LIBRARY})
-
-if ( NOT PYTHON_VERSION_STRING VERSION_EQUAL  PYTHONLIBS_VERSION_STRING )
-  message ( FATAL_ERROR "Version mismatch between python interpreter and libraries")
+  if ( NOT PYTHON_VERSION_STRING VERSION_EQUAL  PYTHONLIBS_VERSION_STRING )
+    message ( FATAL_ERROR "Version mismatch between python interpreter and libraries")
+  endif()
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -37,8 +33,10 @@ endif()
 
 add_subdirectory(src/ptex_utils)
 
-install(FILES ptexutils/__init__.py
-  DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
+if (BUILD_PYTHON_MODULE)
+  install(FILES ptexutils/__init__.py
+    DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
+endif()
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
@@ -49,7 +47,7 @@ write_basic_package_version_file(
 
 configure_file(PtexUtilsConfig.cmake
   "${CMAKE_CURRENT_BINARY_DIR}/src/ptex_utils/PtexUtilsConfig.cmake"
-  COPY_ONLY
+  COPYONLY
 )
 
 install(

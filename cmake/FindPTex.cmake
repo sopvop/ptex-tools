@@ -98,13 +98,13 @@ endif ()
 
 if (PTEX_INCLUDE_DIR AND EXISTS "${PTEX_INCLUDE_DIR}/Ptexture.h" )
 
-    file(STRINGS "${PTEX_INCLUDE_DIR}/Ptexture.h" TMP REGEX "^#define PtexAPIVersion.*$")
+    file(STRINGS "${PTEX_INCLUDE_DIR}/PtexVersion.h" TMP REGEX "^#define PtexAPIVersion.*$")
     string(REGEX MATCHALL "[0-9]+" API ${TMP})
     
-    file(STRINGS "${PTEX_INCLUDE_DIR}/Ptexture.h" TMP REGEX "^#define PtexFileMajorVersion.*$")
+    file(STRINGS "${PTEX_INCLUDE_DIR}/PtexVersion.h" TMP REGEX "^#define PtexFileMajorVersion.*$")
     string(REGEX MATCHALL "[0-9]+" MAJOR ${TMP})
 
-    file(STRINGS "${PTEX_INCLUDE_DIR}/Ptexture.h" TMP REGEX "^#define PtexFileMinorVersion.*$")
+    file(STRINGS "${PTEX_INCLUDE_DIR}/PtexVersion.h" TMP REGEX "^#define PtexFileMinorVersion.*$")
     string(REGEX MATCHALL "[0-9]+" MINOR ${TMP})
 
     set(PTEX_VERSION ${API}.${MAJOR}.${MINOR})

@@ -17,7 +17,7 @@ include(GenerateExportHeader)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
-add_library(ptexutils SHARED ${SRC})
+add_library(ptexutils ${SRC})
 
 generate_export_header(ptexutils)
 
@@ -60,16 +60,18 @@ set_target_properties(ptex-tool
   PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib;"
 )
 
+if (BUILD_PYTHON_MODULE)
 
-PYTHON_ADD_MODULE(cptexutils ${SRC} py_ptx_utils.cpp)
+  PYTHON_ADD_MODULE(cptexutils ${SRC} py_ptx_utils.cpp)
 
-target_compile_definitions(cptexutils PRIVATE "-DPTEXUTILS_STATIC_DEFINE")
+  target_compile_definitions(cptexutils PRIVATE "-DPTEXUTILS_STATIC_DEFINE")
 
-target_link_libraries(cptexutils ${PTEX_LIBRARY}
-                                 ${PYTHON_LIBRARIES}
-                                 ${ZLIB_LIBRARIES}
-                                 Boost::filesystem
-                                 Boost::system)
+  target_link_libraries(cptexutils ${PTEX_LIBRARY}
+                                   ${PYTHON_LIBRARIES}
+                                   ${ZLIB_LIBRARIES}
+                                   Boost::filesystem
+                                   Boost::system)
 
-install(TARGETS cptexutils
-  DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
+  install(TARGETS cptexutils
+    DESTINATION ${PYTHON_INSTALL_DIR}/ptexutils/)
+endif()
