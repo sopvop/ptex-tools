@@ -21,11 +21,14 @@ add_library(ptexutils ${SRC})
 
 generate_export_header(ptexutils)
 
-target_link_libraries(ptexutils PRIVATE
-  ${PTEX_LIBRARY}
-  ${ZLIB_LIBRARY}
-  Boost::filesystem
-  Boost::system)
+target_link_libraries(
+    ptexutils
+  PRIVATE
+    PTex::lib
+    ${ZLIB_LIBRARY}
+    Boost::filesystem
+    Boost::system
+)
 
 set_target_properties(ptexutils PROPERTIES
   SOVERSION 1.1)
