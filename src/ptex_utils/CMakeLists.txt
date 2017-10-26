@@ -30,6 +30,16 @@ target_link_libraries(
     Boost::system
 )
 
+if(BUILD_SHARED_LIBS)
+  target_compile_definitions(
+    ptexutils
+  PUBLIC
+    PTEXUTILS_SHARED
+  PRIVATE
+    PTEXUTILS_EXPORTS
+)
+endif()
+
 set_target_properties(ptexutils PROPERTIES
   SOVERSION 1.1)
 
