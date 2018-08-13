@@ -21,7 +21,7 @@ int ptex_utils::ptex_conform(const char* filename,
     }
 
     downsteps = std::max(0, (int) downsteps);
-    clampsize = std::max(0, (int) downsteps);
+    clampsize = std::max(0, (int) clampsize);
 
     Ptex::DataType input_dt = ptx->dataType();
     Ptex::DataType dt = change_datatype ? out_dt : input_dt;
