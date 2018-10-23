@@ -38,7 +38,6 @@ if (WIN32)
             ${PTEX_LOCATION}/include
             $ENV{PTEX_LOCATION}/include
             $ENV{PROGRAMFILES}/Ptex/include
-            /var/empty/include
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
@@ -47,10 +46,6 @@ if (WIN32)
             ${PTEX_LOCATION}/lib
             $ENV{PTEX_LOCATION}/lib
             $ENV{PROGRAMFILES}/Ptex/lib
-            /var/empty/lib
-            /var/empty/lib/w32api
-            /var/empty/local/lib
-            /var/empty/X11R6/lib
             DOC "The Ptex library")
 elseif (APPLE)
     find_path( PTEX_INCLUDE_DIR
@@ -76,12 +71,6 @@ else ()
             ${PTEX_LOCATION}/include/wdas
             $ENV{PTEX_LOCATION}/include
             $ENV{PTEX_LOCATION}/include/wdas
-            /var/empty/include
-            /var/empty/local/include
-            /var/empty/openwin/share/include
-            /var/empty/openwin/include
-            /var/empty/X11R6/include
-            /var/empty/include/X11
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
@@ -89,10 +78,6 @@ else ()
         PATHS
             ${PTEX_LOCATION}/lib
             $ENV{PTEX_LOCATION}/lib
-            /var/empty/lib
-            /var/empty/local/lib
-            /var/empty/openwin/lib
-            /var/empty/X11R6/lib
             DOC "The Ptex library")
 endif ()
 
@@ -100,7 +85,7 @@ if (PTEX_INCLUDE_DIR AND EXISTS "${PTEX_INCLUDE_DIR}/Ptexture.h" )
 
     file(STRINGS "${PTEX_INCLUDE_DIR}/PtexVersion.h" TMP REGEX "^#define PtexAPIVersion.*$")
     string(REGEX MATCHALL "[0-9]+" API ${TMP})
-    
+
     file(STRINGS "${PTEX_INCLUDE_DIR}/PtexVersion.h" TMP REGEX "^#define PtexFileMajorVersion.*$")
     string(REGEX MATCHALL "[0-9]+" MAJOR ${TMP})
 
@@ -112,7 +97,7 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(PTex 
+find_package_handle_standard_args(PTex
     REQUIRED_VARS
         PTEX_INCLUDE_DIR
         PTEX_LIBRARY

@@ -9,6 +9,7 @@ in stdenv.mkDerivation {
   src= cmakeCleanSource ./.;
   nativeBuildInputs = [ cmake ];
   propagatedBuildInputs = [ boost ptex zlib ];
+  CXXFLAGS = "-D_GLIBCXX_USE_CXX11_ABI=0";
   cmakeFlags = [
    # "-DBUILD_SHARED_LIBS:BOOL=ON"
     "-DBUILD_PYTHON_MODULE:BOOL=OFF"
